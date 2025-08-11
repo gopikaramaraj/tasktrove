@@ -13,8 +13,9 @@ import { collection, doc, getDoc, getDocs } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Card } from '@/components/ui/card';
+import Link from 'next/link';
 
-export default function CommunityDetailPage({ params }: { params: Promise<{ id: string }> }) {
+export default function CommunityDetailPage({ params }: { params: { id: string } }) {
   const { id } = use(params);
   const [community, setCommunity] = useState<Community | null>(null);
   const [challenges, setChallenges] = useState<Challenge[]>([]);
@@ -95,9 +96,11 @@ export default function CommunityDetailPage({ params }: { params: Promise<{ id: 
         <TabsContent value="challenges" className="mt-6">
             <div className="flex items-center justify-between mb-6">
                 <h3 className="text-2xl font-semibold font-headline">Active Challenges</h3>
-                 <Button variant="outline">
-                    <PlusCircle className="mr-2 h-4 w-4" />
-                    New Challenge
+                 <Button variant="outline" asChild>
+                    <Link href={`/communities/${id}/challenges/create`}>
+                      <PlusCircle className="mr-2 h-4 w-4" />
+                      New Challenge
+                    </Link>
                 </Button>
             </div>
             {challenges.length > 0 ? (

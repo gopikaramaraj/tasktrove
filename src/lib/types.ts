@@ -12,9 +12,12 @@ export interface Challenge {
   id: string;
   title: string;
   description:string;
-  progress: number; // This might be user-specific, consider moving to a userChallenge collection
-  communityName: string; // denormalized for easy display
   communityId: string;
+  creatorId: string;
+  createdAt: {
+      seconds: number;
+      nanoseconds: number;
+  };
 }
 
 export interface User {

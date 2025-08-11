@@ -1,5 +1,4 @@
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { Progress } from '@/components/ui/progress';
 import type { Challenge } from '@/lib/types';
 import { LiveCheckinDialog } from './LiveCheckinDialog';
 import { Button } from '../ui/button';
@@ -18,11 +17,8 @@ export function ChallengeCard({ challenge }: ChallengeCardProps) {
         <CardDescription>{challenge.description}</CardDescription>
       </CardHeader>
       <CardContent className="flex-grow">
-        <div className="flex justify-between items-center mb-1">
-            <span className="text-sm text-muted-foreground">Progress</span>
-            <span className="text-sm font-bold text-primary">{challenge.progress}%</span>
-        </div>
-        <Progress value={challenge.progress} />
+        {/* User-specific progress would be shown here */}
+        <p className="text-sm text-muted-foreground">Join this challenge to track your progress!</p>
       </CardContent>
       <CardFooter>
         <LiveCheckinDialog 
