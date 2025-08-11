@@ -1,0 +1,31 @@
+import { SignUpForm } from '@/components/auth/SignUpForm';
+import { Logo } from '@/components/Logo';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import Link from 'next/link';
+
+export default function SignUpPage() {
+  return (
+    <div className="flex min-h-screen flex-col items-center justify-center bg-secondary p-4">
+        <div className="mb-8">
+            <Link href="/">
+                <Logo />
+            </Link>
+        </div>
+      <Card className="w-full max-w-md shadow-xl">
+        <CardHeader className="text-center">
+          <CardTitle className="text-2xl font-headline">Create an Account</CardTitle>
+          <CardDescription>Begin your journey with TaskTrove.</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <SignUpForm />
+           <p className="mt-4 text-center text-sm text-muted-foreground">
+            Already have an account?{' '}
+            <Link href="/login" className="font-medium text-primary hover:underline">
+              Login
+            </Link>
+          </p>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
