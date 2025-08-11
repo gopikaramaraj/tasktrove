@@ -1,36 +1,75 @@
 rules_version = '2';
+
 service cloud.firestore {
   match /databases/{database}/documents {
 
+    // Helper function to check if a user is authenticated
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    // Helper function to check if the user is the owner of the document
+    function isOwner(userId) {
+      return request.auth.uid == userId;
+    }
+
+    // Users Collection
+    // - Anyone can create their own user document (on signup)
+    // - Authenticated users can read public user profiles
+    // - Users can only update or delete their own document
     match /users/{userId} {
-      allow read: if request.auth != null;
-      allow write: if request.auth.uid == userId;
+      allow read: if isAuthenticated();
+      allow create: if isOwner(userId);
+      allow update, delete: if isOwner(userId);
     }
 
+    // Communities Collection
+    // - Authenticated users can read all public communities
+    // - Authenticated users can create communities
+    // - Only the owner can update or delete a community
     match /communities/{communityId} {
-      allow read: if request.auth != null;
-      allow create: if request.auth != null && request.resource.data.ownerId == request.auth.uid;
-      allow update: if request.auth != null && get(/databases/$(database)/documents/communities/$(communityId)).data.ownerId == request.auth.uid;
-    }
+      allow read, create: if isAuthenticated();
+      allow update, delete: if isAuthenticated() && request.auth.uid == resource.data.ownerId;
 
-    match /communities/{communityId}/members/{userId} {
-      allow read: if request.auth != null;
-      allow create: if request.auth.uid == userId;
-    }
+      // Community Members Subcollection
+      // - Authenticated users can read the members list
+      // - Users can join a community (create their own member doc)
+      // - Users can only leave a community (delete their own member doc)
+      match /members/{userId} {
+        allow read: if isAuthenticated();
+        allow create, delete: if isOwner(userId);
+      }
 
-    match /communities/{communityId}/challenges/{challengeId} {
-      allow read: if request.auth != null;
-      allow create, update: if request.auth != null && get(/databases/$(database)/documents/communities/$(communityId)).data.ownerId == request.auth.uid;
+      // Community Challenges Subcollection
+      // - Authenticated users can read challenges
+      // - Authenticated users can create challenges
+      // - Only the creator can update/delete a challenge (future implementation)
+      match /challenges/{challengeId} {
+        allow read, create: if isAuthenticated();
+        // Add update/delete rules later if needed
+      }
     }
     
+    // User Challenges Collection
+    // - Track user progress in specific challenges
+    // - Users can create their own user_challenge doc (join challenge)
+    // - Users can only read their own user_challenge docs
+    // - Users can only update their own user_challenge docs
+    // - Challenge participants can read other participants' progress for leaderboards
     match /user_challenges/{userChallengeId} {
-      allow read, create, update: if request.auth.uid == resource.data.userId;
-      allow list: if request.auth.uid == request.query.filters.userId;
+      allow create: if isAuthenticated() && isOwner(request.resource.data.userId);
+      allow read, update: if isAuthenticated() && isOwner(resource.data.userId);
+      // More open read for leaderboards - This is a simplification. 
+      // In a production app with sensitive data, you'd likely use a Cloud Function 
+      // to aggregate leaderboard data securely.
+       allow list: if isAuthenticated();
     }
-    
+
+    // User Habits Collection
+    // - Users can only manage their own habits
     match /user_habits/{userHabitId} {
-      allow read, create, update: if request.auth.uid == resource.data.userId;
-      allow list: if request.auth.uid == request.query.filters.userId;
+      allow read, write: if isAuthenticated() && isOwner(resource.data.userId);
+      allow list: if isAuthenticated() && request.query.where[0][2] == request.auth.uid;
     }
   }
 }

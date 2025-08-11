@@ -14,6 +14,7 @@ export interface Challenge {
   description:string;
   communityId: string;
   creatorId: string;
+  participantCount: number;
   createdAt: {
       seconds: number;
       nanoseconds: number;
@@ -35,7 +36,12 @@ export interface UserChallenge {
     userId: string;
     challengeId: string;
     communityId: string;
-    progress: number;
+    progress: number; // For now, this will be used for leaderboard ranking
+    xpGained: number;
+    joinedAt: {
+        seconds: number;
+        nanoseconds: number;
+    };
     completedAt: {
         seconds: number;
         nanoseconds: number;

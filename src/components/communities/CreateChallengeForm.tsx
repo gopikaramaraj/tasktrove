@@ -65,6 +65,8 @@ export function CreateChallengeForm({ communityId }: CreateChallengeFormProps) {
         title: values.title,
         description: values.description,
         creatorId: user.uid,
+        communityId: communityId,
+        participantCount: 0,
         createdAt: serverTimestamp(),
       });
 

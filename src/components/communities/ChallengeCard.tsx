@@ -1,8 +1,8 @@
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import type { Challenge } from '@/lib/types';
-import { LiveCheckinDialog } from './LiveCheckinDialog';
 import { Button } from '../ui/button';
-import { Video } from 'lucide-react';
+import { Users } from 'lucide-react';
+import Link from 'next/link';
 
 
 interface ChallengeCardProps {
@@ -17,19 +17,15 @@ export function ChallengeCard({ challenge }: ChallengeCardProps) {
         <CardDescription>{challenge.description}</CardDescription>
       </CardHeader>
       <CardContent className="flex-grow">
-        {/* User-specific progress would be shown here */}
-        <p className="text-sm text-muted-foreground">Join this challenge to track your progress!</p>
+        <div className="flex items-center text-muted-foreground">
+          <Users className="h-4 w-4 mr-2" />
+          <span className="text-sm">{challenge.participantCount || 0} participants</span>
+        </div>
       </CardContent>
       <CardFooter>
-        <LiveCheckinDialog 
-            triggerButton={
-                <Button variant="outline" className="w-full">
-                    <Video className="mr-2 h-4 w-4"/>
-                    Live Check-in
-                </Button>
-            }
-            challengeTitle={challenge.title}
-        />
+        <Button asChild className="w-full">
+            <Link href={`/communities/${challenge.communityId}/challenges/${challenge.id}`}>View Challenge</Link>
+        </Button>
       </CardFooter>
     </Card>
   );
