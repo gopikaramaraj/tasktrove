@@ -7,6 +7,7 @@ import { useEffect, useState } from 'react';
 import { collection, getDocs } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { Skeleton } from '@/components/ui/skeleton';
+import Link from 'next/link';
 
 export default function CommunitiesPage() {
   const [communities, setCommunities] = useState<Community[]>([]);
@@ -32,9 +33,11 @@ export default function CommunitiesPage() {
           <h2 className="text-3xl font-bold tracking-tight font-headline">Explore Communities</h2>
           <p className="text-muted-foreground">Find your tribe and start achieving goals together.</p>
         </div>
-        <Button className="bg-accent hover:bg-accent/90 text-accent-foreground">
-          <PlusCircle className="mr-2 h-4 w-4" />
-          Create Community
+        <Button asChild className="bg-accent hover:bg-accent/90 text-accent-foreground">
+          <Link href="/communities/create">
+            <PlusCircle className="mr-2 h-4 w-4" />
+            Create Community
+          </Link>
         </Button>
       </div>
       
