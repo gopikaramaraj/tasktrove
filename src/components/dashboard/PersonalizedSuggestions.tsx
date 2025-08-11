@@ -1,25 +1,59 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { suggestPersonalizedChallenges, SuggestPersonalizedChallengesOutput } from '@/ai/flows/suggest-personalized-challenges';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Bot, ThumbsUp, Zap } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
+import { useAuth } from '@/hooks/use-auth';
+import { collection, query, where, getDocs, limit } from 'firebase/firestore';
+import { db } from '@/lib/firebase';
+import { Challenge, Community, UserChallenge } from '@/lib/types';
+
 
 export function PersonalizedSuggestions() {
   const [loading, setLoading] = useState(false);
   const [suggestions, setSuggestions] = useState<SuggestPersonalizedChallengesOutput | null>(null);
   const { toast } = useToast();
+  const { user } = useAuth();
 
   const getSuggestions = async () => {
+    if (!user) return;
     setLoading(true);
     setSuggestions(null);
+
     try {
+        // Fetch user's completed challenges
+        const userChallengesQuery = query(
+            collection(db, 'user_challenges'),
+            where('userId', '==', user.uid),
+            where('progress', '==', 100),
+            limit(5)
+        );
+        const userChallengesSnapshot = await getDocs(userChallengesQuery);
+        const completedChallenges = await Promise.all(userChallengesSnapshot.docs.map(async (doc) => {
+            const userChallenge = doc.data() as UserChallenge;
+            const challengeDoc = await getDocs(query(collection(db, 'communities', userChallenge.communityId, 'challenges'), where('id', '==', userChallenge.challengeId)));
+            return challengeDoc.docs.length > 0 ? (challengeDoc.docs[0].data() as Challenge).title : null
+        }));
+        const userActivity = `Completed challenges: ${completedChallenges.filter(Boolean).join(', ') || 'None'}`;
+        
+        // Fetch community trends
+        const communitiesQuery = query(collection(db, 'communities'), limit(5));
+        const communitiesSnapshot = await getDocs(communitiesQuery);
+        const communityTrends = await Promise.all(communitiesSnapshot.docs.map(async (communityDoc) => {
+            const community = communityDoc.data() as Community;
+            const challengesQuery = query(collection(db, 'communities', community.id, 'challenges'), limit(2));
+            const challengesSnapshot = await getDocs(challengesQuery);
+            const challengeTitles = challengesSnapshot.docs.map(d => (d.data() as Challenge).title);
+            return `In ${community.name}, trending challenges are: ${challengeTitles.join(', ')}`;
+        }));
+
       const result = await suggestPersonalizedChallenges({
-        userActivity: 'Completed "30-day coding challenge". Active in "React Developers" community. Tracking "daily reading" habit.',
-        communityTrends: 'Trending challenges: "Build a Next.js App in 1 week", "Daily UI/UX design challenge". Trending habits: "Morning meditation", "Drink 8 glasses of water".',
+        userActivity: userActivity,
+        communityTrends: communityTrends.join('. '),
       });
       setSuggestions(result);
     } catch (error) {

@@ -26,3 +26,26 @@ export interface User {
   bio?: string;
   level: number;
 }
+
+export interface UserChallenge {
+    id: string;
+    userId: string;
+    challengeId: string;
+    communityId: string;
+    progress: number;
+    completedAt: {
+        seconds: number;
+        nanoseconds: number;
+    } | null;
+}
+
+export interface UserHabit {
+    id: string;
+    userId: string;
+    habitId: string;
+    name: string;
+    lastCheckIn: {
+        seconds: number;
+        nanoseconds: number;
+    };
+}

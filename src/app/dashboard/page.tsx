@@ -7,9 +7,72 @@ import { PersonalizedSuggestions } from '@/components/dashboard/PersonalizedSugg
 import { StatCard } from '@/components/dashboard/StatCard';
 import { useAuth } from '@/hooks/use-auth';
 import { Skeleton } from '@/components/ui/skeleton';
+import { useEffect, useState } from 'react';
+import { collection, query, where, getDocs } from 'firebase/firestore';
+import { db } from '@/lib/firebase';
+import { UserHabit } from '@/lib/types';
+import { differenceInCalendarDays } from 'date-fns';
 
 export default function DashboardPage() {
-  const { userData, loading } = useAuth();
+  const { userData, loading: authLoading } = useAuth();
+  const [challengesDone, setChallengesDone] = useState(0);
+  const [currentStreak, setCurrentStreak] = useState(0);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function fetchDashboardData() {
+      if (!userData) {
+        if (!authLoading) setLoading(false);
+        return;
+      }
+      setLoading(true);
+
+      // Fetch completed challenges
+      const challengesQuery = query(
+        collection(db, 'user_challenges'),
+        where('userId', '==', userData.id),
+        where('progress', '==', 100)
+      );
+      const challengesSnapshot = await getDocs(challengesQuery);
+      setChallengesDone(challengesSnapshot.size);
+
+      // Fetch habits to calculate streak
+      const habitsQuery = query(
+          collection(db, 'user_habits'),
+          where('userId', '==', userData.id)
+      );
+      const habitsSnapshot = await getDocs(habitsQuery);
+      const habits = habitsSnapshot.docs.map(doc => doc.data() as UserHabit);
+      
+      let streak = 0;
+      if (habits.length > 0) {
+        const sortedHabits = habits.sort((a,b) => b.lastCheckIn.seconds - a.lastCheckIn.seconds);
+        const lastCheckinDate = new Date(sortedHabits[0].lastCheckIn.seconds * 1000);
+        const today = new Date();
+        const diffDays = differenceInCalendarDays(today, lastCheckinDate);
+
+        if (diffDays <= 1) {
+            streak = 1; // Start with 1 for today/yesterday's check-in
+            let currentDate = lastCheckinDate;
+            for (let i = 1; i < sortedHabits.length; i++) {
+                const prevDate = new Date(sortedHabits[i].lastCheckIn.seconds * 1000);
+                if (differenceInCalendarDays(currentDate, prevDate) === 1) {
+                    streak++;
+                    currentDate = prevDate;
+                } else if (differenceInCalendarDays(currentDate, prevDate) > 1) {
+                    break; 
+                }
+            }
+        }
+      }
+      setCurrentStreak(streak);
+
+      setLoading(false);
+    }
+
+    fetchDashboardData();
+  }, [userData, authLoading]);
+
 
   const badges = [
     { icon: <Star className="text-primary" />, name: 'First Quest' },
@@ -18,7 +81,7 @@ export default function DashboardPage() {
     { icon: <Award className="text-green-500" />, name: 'Habit Master' },
   ];
 
-  if (loading || !userData) {
+  if (authLoading || loading || !userData) {
     return <DashboardSkeleton />;
   }
 
@@ -33,9 +96,9 @@ export default function DashboardPage() {
       </div>
       
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-        <StatCard title="XP Points" value={userData.xp.toLocaleString()} icon={<Star className="text-primary" />} description="+50 from yesterday" />
-        <StatCard title="Current Streak" value="14 Days" icon={<Flame className="text-red-500" />} description="New personal best!" />
-        <StatCard title="Challenges Done" value="8" icon={<Award className="text-green-500" />} description="2 active challenges" />
+        <StatCard title="XP Points" value={userData.xp.toLocaleString()} icon={<Star className="text-primary" />} description="Keep earning XP!" />
+        <StatCard title="Current Streak" value={`${currentStreak} Days`} icon={<Flame className="text-red-500" />} description="Check-in daily to keep it going!" />
+        <StatCard title="Challenges Done" value={challengesDone.toString()} icon={<Award className="text-green-500" />} description="Great work completing challenges!" />
       </div>
 
       <div className="grid gap-6 lg:grid-cols-5">
