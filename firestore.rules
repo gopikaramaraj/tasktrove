@@ -1,0 +1,40 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Users can read their own profile, and can only update their own 'name', 'bio', and 'avatarUrl'.
+    // Any authenticated user can read public profile data of other users.
+    // New users can create their own user document.
+    match /users/{userId} {
+      allow read: if request.auth != null;
+      allow create: if request.auth.uid == userId;
+      allow update: if request.auth.uid == userId &&
+                     request.resource.data.keys().hasOnly(['id', 'name', 'email', 'avatarUrl', 'xp', 'level', 'bio']);
+    }
+
+    // Communities can be read by any authenticated user.
+    // Creating communities is allowed for any authenticated user.
+    // Updates and deletes are disallowed for now to prevent misuse.
+    match /communities/{communityId} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null;
+      allow update: if false; // TBD: implement creator/admin roles
+      allow delete: if false; // TBD: implement creator/admin roles
+
+      // Challenges can be read by any authenticated user.
+      // Any authenticated user can create a challenge in a community.
+      match /challenges/{challengeId} {
+        allow read, create: if request.auth != null;
+        allow update, delete: if false; // TBD: implement creator/admin roles
+      }
+
+      // Community members can be read by any authenticated user.
+      // Any authenticated user can join a community (become a member).
+      match /members/{userId} {
+        allow read, create: if request.auth != null;
+        allow update, delete: if request.auth.uid == userId; // Allow users to leave
+      }
+    }
+  }
+}

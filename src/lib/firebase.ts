@@ -3,14 +3,14 @@ import { getAuth } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
 
 const firebaseConfig = {
-  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
-  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
-  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
-  storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
-  messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
-  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
+  apiKey: "AIzaSyCY25YQW4R3qK8OIBZftfQQ8X-9kcpdME4",
+  authDomain: "tasktrove-in.firebaseapp.com",
+  projectId: "tasktrove-in",
+  storageBucket: "tasktrove-in.firebasestorage.app",
+  messagingSenderId: "1017115436511",
+  appId: "1:1017115436511:web:c3ee35dd61da3695f3106a",
+  measurementId: "G-XE26FBEH56"
 };
-
 // Initialize Firebase
 const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
 const auth = getAuth(app);
