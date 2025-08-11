@@ -47,12 +47,20 @@ export function OAuthButtons() {
             });
             router.push('/dashboard');
         } catch (error: any) {
-            console.error("Google sign-in error", error);
-            toast({
-                variant: 'destructive',
-                title: 'Google Sign-in Failed',
-                description: 'Could not sign in with Google. Please try again.',
-            });
+            if (error.code === 'auth/popup-closed-by-user') {
+                toast({
+                    variant: 'default',
+                    title: 'Sign-in cancelled',
+                    description: 'The sign-in window was closed before completion.',
+                });
+            } else {
+                 console.error("Google sign-in error", error);
+                toast({
+                    variant: 'destructive',
+                    title: 'Google Sign-in Failed',
+                    description: 'Could not sign in with Google. Please try again.',
+                });
+            }
         }
     }
 
