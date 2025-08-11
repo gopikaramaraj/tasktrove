@@ -6,6 +6,7 @@ export interface Community {
   isPrivate: boolean;
   imageUrl: string;
   bannerUrl: string;
+  ownerId: string;
 }
 
 export interface Challenge {

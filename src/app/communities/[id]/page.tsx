@@ -2,7 +2,7 @@
 import Image from 'next/image';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
-import { UserPlus, PlusCircle, Video } from 'lucide-react';
+import { UserPlus, PlusCircle, Video, Settings } from 'lucide-react';
 import type { Challenge, User, Community } from '@/lib/types';
 import { ChallengeCard } from '@/components/communities/ChallengeCard';
 import { Leaderboard } from '@/components/communities/Leaderboard';
@@ -14,9 +14,11 @@ import { db } from '@/lib/firebase';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Card } from '@/components/ui/card';
 import Link from 'next/link';
+import { useAuth } from '@/hooks/use-auth';
 
 export default function CommunityDetailPage({ params }: { params: { id: string } }) {
   const { id } = use(params);
+  const { user } = useAuth();
   const [community, setCommunity] = useState<Community | null>(null);
   const [challenges, setChallenges] = useState<Challenge[]>([]);
   const [members, setMembers] = useState<User[]>([]);
@@ -69,6 +71,8 @@ export default function CommunityDetailPage({ params }: { params: { id: string }
       return <div>Community not found.</div>
   }
 
+  const isOwner = user && community && user.uid === community.ownerId;
+
   return (
     <div className="space-y-8">
       <div className="relative h-48 md:h-64 w-full rounded-lg overflow-hidden">
@@ -92,6 +96,7 @@ export default function CommunityDetailPage({ params }: { params: { id: string }
           <TabsTrigger value="leaderboard">Leaderboard</TabsTrigger>
           <TabsTrigger value="members">Members</TabsTrigger>
           <TabsTrigger value="checkins">Live Check-ins</TabsTrigger>
+           {isOwner && <TabsTrigger value="settings">Settings</TabsTrigger>}
         </TabsList>
         <TabsContent value="challenges" className="mt-6">
             <div className="flex items-center justify-between mb-6">
@@ -142,6 +147,16 @@ export default function CommunityDetailPage({ params }: { params: { id: string }
                 <LiveCheckinDialog triggerButton={<Button><Video className="mr-2 h-4 w-4"/>Start a Check-in</Button>} />
             </div>
         </TabsContent>
+        {isOwner && (
+            <TabsContent value="settings" className="mt-6">
+                 <div className="text-center p-8 border-2 border-dashed rounded-lg bg-secondary">
+                    <Settings className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
+                    <h3 className="text-xl font-semibold font-headline">Community Settings</h3>
+                    <p className="text-muted-foreground mb-4">Manage your community settings here.</p>
+                    <p className="text-sm text-muted-foreground">(Management features coming soon)</p>
+                </div>
+            </TabsContent>
+        )}
       </Tabs>
     </div>
   );
