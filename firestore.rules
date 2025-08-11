@@ -1,40 +1,53 @@
+
 rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Users can read their own profile, and can only update their own 'name', 'bio', and 'avatarUrl'.
-    // Any authenticated user can read public profile data of other users.
-    // New users can create their own user document.
+    // Users: Can read any user's public data (for profiles, leaderboards).
+    // Can only create and update their own data.
     match /users/{userId} {
       allow read: if request.auth != null;
-      allow create: if request.auth.uid == userId;
-      allow update: if request.auth.uid == userId &&
-                     request.resource.data.keys().hasOnly(['id', 'name', 'email', 'avatarUrl', 'xp', 'level', 'bio']);
+      allow create: if request.auth != null && request.auth.uid == userId;
+      allow update: if request.auth != null && request.auth.uid == userId;
+      allow delete: if false; // Nobody can delete user profiles for now
     }
 
-    // Communities can be read by any authenticated user.
-    // Creating communities is allowed for any authenticated user.
-    // Updates and deletes are disallowed for now to prevent misuse.
+    // Communities: Logged-in users can read all communities.
+    // Can create communities.
+    // Can update/delete a community only if they are the owner.
     match /communities/{communityId} {
       allow read: if request.auth != null;
       allow create: if request.auth != null;
-      allow update: if false; // TBD: implement creator/admin roles
-      allow delete: if false; // TBD: implement creator/admin roles
+      allow update: if request.auth != null && resource.data.ownerId == request.auth.uid;
+      allow delete: if request.auth != null && resource.data.ownerId == request.auth.uid;
 
-      // Challenges can be read by any authenticated user.
-      // Any authenticated user can create a challenge in a community.
-      match /challenges/{challengeId} {
-        allow read, create: if request.auth != null;
-        allow update, delete: if false; // TBD: implement creator/admin roles
-      }
-
-      // Community members can be read by any authenticated user.
-      // Any authenticated user can join a community (become a member).
+      // Community Members: Can be read by any logged-in user.
+      // Users can join/leave communities.
       match /members/{userId} {
-        allow read, create: if request.auth != null;
-        allow update, delete: if request.auth.uid == userId; // Allow users to leave
+        allow read: if request.auth != null;
+        allow create: if request.auth != null && request.auth.uid == userId;
+        allow delete: if request.auth != null && request.auth.uid == userId;
       }
+
+      // Challenges: Can be read by any logged-in user.
+      // Can only be created/updated/deleted by a community member (for now, will refine later).
+      match /challenges/{challengeId} {
+        allow read: if request.auth != null;
+        allow create: if request.auth != null && exists(/databases/$(database)/documents/communities/$(communityId)/members/$(request.auth.uid));
+        allow update: if request.auth != null && exists(/databases/$(database)/documents/communities/$(communityId)/members/$(request.auth.uid));
+        allow delete: if request.auth != null && exists(/databases/$(database)/documents/communities/$(communityId)/members/$(request.auth.uid));
+      }
+    }
+
+    // User-specific challenge progress
+    match /user_challenges/{userChallengeId} {
+      allow read, write: if request.auth != null && request.resource.data.userId == request.auth.uid;
+    }
+
+    // User-specific habit tracking
+    match /user_habits/{userHabitId} {
+      allow read, write: if request.auth != null && request.resource.data.userId == request.auth.uid;
     }
   }
 }
