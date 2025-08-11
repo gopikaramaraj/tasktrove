@@ -1,41 +1,71 @@
+'use client';
 import Image from 'next/image';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { UserPlus, PlusCircle, Video } from 'lucide-react';
-import type { Challenge, User } from '@/lib/types';
+import type { Challenge, User, Community } from '@/lib/types';
 import { ChallengeCard } from '@/components/communities/ChallengeCard';
 import { Leaderboard } from '@/components/communities/Leaderboard';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { LiveCheckinDialog } from '@/components/communities/LiveCheckinDialog';
-
-const mockCommunity = {
-  id: '3',
-  name: 'Code & Coffee',
-  description: 'A community for developers to tackle coding challenges and share projects.',
-  memberCount: 2350,
-  isPrivate: false,
-  imageUrl: 'https://placehold.co/400x300.png',
-  bannerUrl: 'https://placehold.co/1200x400.png',
-};
-
-const mockChallenges: Challenge[] = [
-    { id: 'c1', title: '30 Days of React', description: 'Master React by building 30 small projects in 30 days.', progress: 75, communityName: 'Code & Coffee' },
-    { id: 'c2', title: 'Python Weekly Challenge', description: 'Solve a new Python algorithm problem every week.', progress: 40, communityName: 'Code & Coffee' },
-    { id: 'c3', title: 'UI/UX Design Sprint', description: 'Complete a full UI/UX design process for a fictional app in 2 weeks.', progress: 90, communityName: 'Code & Coffee' },
-];
-
-const mockUsers: User[] = [
-    { id: 'u1', name: 'Alice', avatarUrl: 'https://placehold.co/40x40.png', xp: 5820 },
-    { id: 'u2', name: 'Bob', avatarUrl: 'https://placehold.co/40x40.png', xp: 5140 },
-    { id: 'u3', name: 'Charlie', avatarUrl: 'https://placehold.co/40x40.png', xp: 4990 },
-    { id: 'u4', name: 'Diana', avatarUrl: 'https://placehold.co/40x40.png', xp: 4500 },
-    { id: 'u5', name: 'Eve', avatarUrl: 'https://placehold.co/40x40.png', xp: 3210 },
-];
-
+import { useEffect, useState } from 'react';
+import { collection, doc, getDoc, getDocs } from 'firebase/firestore';
+import { db } from '@/lib/firebase';
+import { Skeleton } from '@/components/ui/skeleton';
+import { Card } from '@/components/ui/card';
 
 export default function CommunityDetailPage({ params }: { params: { id: string } }) {
-  // In a real app, you would fetch community data based on params.id
-  const community = mockCommunity;
+  const [community, setCommunity] = useState<Community | null>(null);
+  const [challenges, setChallenges] = useState<Challenge[]>([]);
+  const [members, setMembers] = useState<User[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchCommunityData = async () => {
+        setLoading(true);
+        try {
+            // Fetch community details
+            const communityDoc = await getDoc(doc(db, 'communities', params.id));
+            if (communityDoc.exists()) {
+                setCommunity({ id: communityDoc.id, ...communityDoc.data() } as Community);
+            }
+
+            // Fetch challenges for the community
+            const challengesQuery = collection(db, 'communities', params.id, 'challenges');
+            const challengesSnapshot = await getDocs(challengesQuery);
+            const challengesList = challengesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Challenge));
+            setChallenges(challengesList);
+
+            // Fetch members (users) of the community
+            const membersQuery = collection(db, 'communities', params.id, 'members');
+            const membersSnapshot = await getDocs(membersQuery);
+            const memberIds = membersSnapshot.docs.map(doc => doc.id);
+
+            if (memberIds.length > 0) {
+              const usersQuery = collection(db, 'users');
+              const usersSnapshot = await getDocs(usersQuery);
+              const allUsers = usersSnapshot.docs.map(doc => ({id: doc.id, ...doc.data()}) as User);
+              const communityMembers = allUsers.filter(user => memberIds.includes(user.id));
+              setMembers(communityMembers);
+            }
+
+        } catch (error) {
+            console.error("Failed to fetch community data:", error);
+        }
+        setLoading(false);
+    };
+
+    fetchCommunityData();
+  }, [params.id]);
+
+
+  if (loading) {
+    return <CommunityDetailSkeleton />
+  }
+  
+  if (!community) {
+      return <div>Community not found.</div>
+  }
 
   return (
     <div className="space-y-8">
@@ -69,18 +99,24 @@ export default function CommunityDetailPage({ params }: { params: { id: string }
                     New Challenge
                 </Button>
             </div>
-            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-                {mockChallenges.map(challenge => (
-                    <ChallengeCard key={challenge.id} challenge={challenge} />
-                ))}
-            </div>
+            {challenges.length > 0 ? (
+                <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+                    {challenges.map(challenge => (
+                        <ChallengeCard key={challenge.id} challenge={challenge} />
+                    ))}
+                </div>
+            ) : (
+                <div className="text-center p-8 border-2 border-dashed rounded-lg bg-secondary">
+                    <p className="text-muted-foreground">No active challenges in this community yet.</p>
+                </div>
+            )}
         </TabsContent>
         <TabsContent value="leaderboard" className="mt-6">
-            <Leaderboard users={mockUsers} />
+            <Leaderboard users={members} />
         </TabsContent>
         <TabsContent value="members" className="mt-6">
            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-               {mockUsers.map(user => (
+               {members.map(user => (
                    <div key={user.id} className="flex items-center gap-4 p-4 rounded-lg bg-secondary">
                         <Avatar>
                            <AvatarImage src={user.avatarUrl} alt={user.name} data-ai-hint="person" />
@@ -105,4 +141,27 @@ export default function CommunityDetailPage({ params }: { params: { id: string }
       </Tabs>
     </div>
   );
+}
+
+
+function CommunityDetailSkeleton() {
+    return (
+        <div className="space-y-8 animate-pulse">
+            <Skeleton className="relative h-48 md:h-64 w-full rounded-lg" />
+            <div className="space-y-4">
+                <Skeleton className="h-10 w-full" />
+                <div className="mt-6">
+                    <div className="flex items-center justify-between mb-6">
+                        <Skeleton className="h-8 w-48" />
+                        <Skeleton className="h-10 w-36" />
+                    </div>
+                    <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+                        <Card><Skeleton className="h-48" /></Card>
+                        <Card><Skeleton className="h-48" /></Card>
+                        <Card><Skeleton className="h-48" /></Card>
+                    </div>
+                </div>
+            </div>
+        </div>
+    )
 }

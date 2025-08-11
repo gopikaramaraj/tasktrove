@@ -15,7 +15,6 @@ import {z} from 'genkit';
 const SuggestPersonalizedChallengesInputSchema = z.object({
   userActivity: z.string().describe('A summary of the user\'s recent activity within the app, including completed challenges, joined communities, and tracked habits.'),
   communityTrends: z.string().describe('A summary of trending challenges and habits within the user\'s communities.'),
-  userPreferencesAligned: z.boolean().describe('Whether or not user preferences align with the current suggestions.'),
 });
 export type SuggestPersonalizedChallengesInput = z.infer<typeof SuggestPersonalizedChallengesInputSchema>;
 
@@ -44,13 +43,9 @@ const prompt = ai.definePrompt({
   {{communityTrends}}
 
   Based on this information, suggest a list of challenges and habits that the user might find interesting and motivating.
-  If user preferences align with the current suggestions, use the getAlignSuggestions tool to get aligned suggestions.
-
-  Challenges:
-  {{#each suggestedChallenges}}- {{this}}\n{{/each}}
-
-  Habits:
-  {{#each suggestedHabits}}- {{this}}\n{{/each}}`,
+  
+  Provide 3 suggestions for challenges and 3 for habits.
+  `,
 });
 
 const suggestPersonalizedChallengesFlow = ai.defineFlow(

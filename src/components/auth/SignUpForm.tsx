@@ -9,6 +9,9 @@ import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
 import { OAuthButtons } from './OAuthButtons';
 import { useRouter } from 'next/navigation';
+import { createUserWithEmailAndPassword, updateProfile } from 'firebase/auth';
+import { auth, db } from '@/lib/firebase';
+import { doc, setDoc } from 'firebase/firestore';
 
 const formSchema = z.object({
   username: z.string().min(3, { message: 'Username must be at least 3 characters.' }),
@@ -29,14 +32,38 @@ export function SignUpForm() {
     },
   });
 
-  function onSubmit(values: z.infer<typeof formSchema>) {
-    console.log(values);
-    // Mock successful signup
-    toast({
-      title: "Account Created!",
-      description: "Redirecting to your new dashboard...",
-    });
-    router.push('/dashboard');
+  async function onSubmit(values: z.infer<typeof formSchema>) {
+    try {
+      const userCredential = await createUserWithEmailAndPassword(auth, values.email, values.password);
+      const user = userCredential.user;
+      
+      await updateProfile(user, {
+        displayName: values.username,
+      });
+
+      await setDoc(doc(db, "users", user.uid), {
+        id: user.uid,
+        name: values.username,
+        email: values.email,
+        avatarUrl: `https://placehold.co/100x100.png?text=${values.username.charAt(0)}`,
+        xp: 0,
+        level: 1,
+        bio: `I'm new to TaskTrove!`,
+      });
+
+      toast({
+        title: "Account Created!",
+        description: "Redirecting to your new dashboard...",
+      });
+      router.push('/dashboard');
+    } catch (error: any) {
+        console.error(error);
+        toast({
+            variant: 'destructive',
+            title: 'Sign-up failed',
+            description: error.message,
+        })
+    }
   }
 
   return (
@@ -81,8 +108,8 @@ export function SignUpForm() {
             </FormItem>
           )}
         />
-        <Button type="submit" className="w-full bg-primary hover:bg-primary/90 text-primary-foreground">
-          Create Account
+        <Button type="submit" className="w-full bg-primary hover:bg-primary/90 text-primary-foreground" disabled={form.formState.isSubmitting}>
+          {form.formState.isSubmitting ? "Creating Account..." : "Create Account"}
         </Button>
       </form>
        <div className="relative my-6">

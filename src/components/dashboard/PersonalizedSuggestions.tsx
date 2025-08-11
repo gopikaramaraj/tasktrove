@@ -20,7 +20,6 @@ export function PersonalizedSuggestions() {
       const result = await suggestPersonalizedChallenges({
         userActivity: 'Completed "30-day coding challenge". Active in "React Developers" community. Tracking "daily reading" habit.',
         communityTrends: 'Trending challenges: "Build a Next.js App in 1 week", "Daily UI/UX design challenge". Trending habits: "Morning meditation", "Drink 8 glasses of water".',
-        userPreferencesAligned: true,
       });
       setSuggestions(result);
     } catch (error) {
