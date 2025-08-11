@@ -8,13 +8,14 @@ import { ChallengeCard } from '@/components/communities/ChallengeCard';
 import { Leaderboard } from '@/components/communities/Leaderboard';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { LiveCheckinDialog } from '@/components/communities/LiveCheckinDialog';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, use } from 'react';
 import { collection, doc, getDoc, getDocs } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Card } from '@/components/ui/card';
 
-export default function CommunityDetailPage({ params }: { params: { id: string } }) {
+export default function CommunityDetailPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = use(params);
   const [community, setCommunity] = useState<Community | null>(null);
   const [challenges, setChallenges] = useState<Challenge[]>([]);
   const [members, setMembers] = useState<User[]>([]);
@@ -25,19 +26,19 @@ export default function CommunityDetailPage({ params }: { params: { id: string }
         setLoading(true);
         try {
             // Fetch community details
-            const communityDoc = await getDoc(doc(db, 'communities', params.id));
+            const communityDoc = await getDoc(doc(db, 'communities', id));
             if (communityDoc.exists()) {
                 setCommunity({ id: communityDoc.id, ...communityDoc.data() } as Community);
             }
 
             // Fetch challenges for the community
-            const challengesQuery = collection(db, 'communities', params.id, 'challenges');
+            const challengesQuery = collection(db, 'communities', id, 'challenges');
             const challengesSnapshot = await getDocs(challengesQuery);
             const challengesList = challengesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Challenge));
             setChallenges(challengesList);
 
             // Fetch members (users) of the community
-            const membersQuery = collection(db, 'communities', params.id, 'members');
+            const membersQuery = collection(db, 'communities', id, 'members');
             const membersSnapshot = await getDocs(membersQuery);
             const memberIds = membersSnapshot.docs.map(doc => doc.id);
 
@@ -56,7 +57,7 @@ export default function CommunityDetailPage({ params }: { params: { id: string }
     };
 
     fetchCommunityData();
-  }, [params.id]);
+  }, [id]);
 
 
   if (loading) {
