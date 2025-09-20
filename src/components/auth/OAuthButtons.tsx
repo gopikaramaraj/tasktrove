@@ -51,7 +51,7 @@ export function OAuthButtons() {
                 toast({
                     variant: 'default',
                     title: 'Sign-in cancelled',
-                    description: 'The sign-in window was closed before completion.',
+                    description: 'You closed the sign-in window before completion.',
                 });
             } else {
                  console.error("Google sign-in error", error);
