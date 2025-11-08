@@ -44,7 +44,7 @@ export function PersonalizedSuggestions() {
         const communitiesQuery = query(collection(db, 'communities'), limit(5));
         const communitiesSnapshot = await getDocs(communitiesQuery);
         const communityTrends = await Promise.all(communitiesSnapshot.docs.map(async (communityDoc) => {
-            const community = communityDoc.data() as Community;
+            const community = { id: communityDoc.id, ...communityDoc.data() } as Community;
             const challengesQuery = query(collection(db, 'communities', community.id, 'challenges'), limit(2));
             const challengesSnapshot = await getDocs(challengesQuery);
             const challengeTitles = challengesSnapshot.docs.map(d => (d.data() as Challenge).title);
