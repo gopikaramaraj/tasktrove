@@ -19,6 +19,7 @@ import { useEffect } from 'react';
 
 const profileFormSchema = z.object({
   username: z.string().min(3, { message: 'Username must be at least 3 characters.' }),
+  email: z.string().email(),
   bio: z.string().max(160).optional(),
 });
 
@@ -30,6 +31,7 @@ export default function ProfilePage() {
     resolver: zodResolver(profileFormSchema),
     defaultValues: {
       username: '',
+      email: '',
       bio: '',
     },
   });
@@ -38,6 +40,7 @@ export default function ProfilePage() {
     if (userData) {
       form.reset({
         username: userData.name,
+        email: userData.email,
         bio: userData.bio || '',
       });
     }
@@ -123,12 +126,19 @@ export default function ProfilePage() {
                                         </FormItem>
                                     )}
                                     />
+                                    <FormField
+                                    control={form.control}
+                                    name="email"
+                                    render={({ field }) => (
                                     <FormItem>
                                         <FormLabel>Email</FormLabel>
                                         <FormControl>
-                                            <Input type="email" readOnly disabled value={userData.email} />
+                                            <Input type="email" readOnly disabled {...field} />
                                         </FormControl>
+                                        <FormMessage />
                                     </FormItem>
+                                    )}
+                                    />
                                     <FormField
                                     control={form.control}
                                     name="bio"
