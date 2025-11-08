@@ -96,7 +96,6 @@ export default function CommunityDetailPage({ params }: { params: { id: string }
           <TabsTrigger value="leaderboard">Leaderboard</TabsTrigger>
           <TabsTrigger value="members">Members</TabsTrigger>
           <TabsTrigger value="checkins">Live Check-ins</TabsTrigger>
-           {isOwner && <TabsTrigger value="settings">Settings</TabsTrigger>}
         </TabsList>
         <TabsContent value="challenges" className="mt-6">
             <div className="flex items-center justify-between mb-6">
@@ -153,7 +152,9 @@ export default function CommunityDetailPage({ params }: { params: { id: string }
                     <Settings className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
                     <h3 className="text-xl font-semibold font-headline">Community Settings</h3>
                     <p className="text-muted-foreground mb-4">Manage your community settings here.</p>
-                    <p className="text-sm text-muted-foreground">(Management features coming soon)</p>
+                     <Button asChild>
+                        <Link href={`/communities/${id}/settings`}>Go to Settings</Link>
+                    </Button>
                 </div>
             </TabsContent>
         )}
@@ -184,3 +185,5 @@ function CommunityDetailSkeleton() {
         </div>
     )
 }
+
+    

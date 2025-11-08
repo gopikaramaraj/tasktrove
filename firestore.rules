@@ -12,6 +12,11 @@ service cloud.firestore {
     function isOwner(userId) {
       return request.auth.uid == userId;
     }
+    
+    // Helper function to check if the user is the owner of the community
+    function isCommunityOwner(communityId) {
+        return isAuthenticated() && request.auth.uid == get(/databases/$(database)/documents/communities/$(communityId)).data.ownerId;
+    }
 
     // Users Collection
     // - Anyone can create their own user document (on signup)
@@ -29,15 +34,17 @@ service cloud.firestore {
     // - Only the owner can update or delete a community
     match /communities/{communityId} {
       allow read, create: if isAuthenticated();
-      allow update, delete: if isAuthenticated() && request.auth.uid == resource.data.ownerId;
+      allow update, delete: if isCommunityOwner(communityId);
 
       // Community Members Subcollection
       // - Authenticated users can read the members list
       // - Users can join a community (create their own member doc)
       // - Users can only leave a community (delete their own member doc)
+      // - Community owner can remove members
       match /members/{userId} {
         allow read: if isAuthenticated();
-        allow create, delete: if isOwner(userId);
+        allow create: if isOwner(userId);
+        allow delete: if isOwner(userId) || isCommunityOwner(communityId);
       }
 
       // Community Challenges Subcollection
@@ -73,3 +80,5 @@ service cloud.firestore {
     }
   }
 }
+
+    
