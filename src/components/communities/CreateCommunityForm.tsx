@@ -64,7 +64,7 @@ export function CreateCommunityForm() {
         memberCount: 1,
         createdAt: serverTimestamp(),
         ownerId: user.uid,
-        imageUrl: `https://placehold.co/400x300.png`,
+        imageUrl: `https://placehold.co/400x300.png?text=${values.name.charAt(0)}`,
         bannerUrl: `https://placehold.co/1200x400.png`,
       });
       
