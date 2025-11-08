@@ -20,6 +20,16 @@ export interface Challenge {
       seconds: number;
       nanoseconds: number;
   };
+  duration: number; // in days
+  startDate: {
+    seconds: number;
+    nanoseconds: number;
+  };
+  endDate: {
+    seconds: number;
+    nanoseconds: number;
+  };
+  xp: number;
 }
 
 export interface User {

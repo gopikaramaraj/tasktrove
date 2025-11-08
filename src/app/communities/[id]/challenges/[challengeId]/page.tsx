@@ -21,22 +21,24 @@ import {
   where,
   limit,
   increment,
+  updateDoc,
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { Skeleton } from '@/components/ui/skeleton';
 import { use, useEffect, useState } from 'react';
 import { useAuth } from '@/hooks/use-auth';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, UserPlus, Zap } from 'lucide-react';
+import { ArrowLeft, UserPlus, Zap, Calendar, Award, CheckCircle } from 'lucide-react';
 import Link from 'next/link';
 import { useToast } from '@/hooks/use-toast';
+import { format } from 'date-fns';
 
 export default function ChallengeDetailPage({
   params,
 }: {
   params: { id: string; challengeId: string };
 }) {
-  const { id: communityId, challengeId } = use(params);
+  const { id: communityId, challengeId } = params;
   const { user, userData, loading: authLoading } = useAuth();
   const router = useRouter();
   const { toast } = useToast();
@@ -47,7 +49,7 @@ export default function ChallengeDetailPage({
     null
   );
   const [isJoining, setIsJoining] = useState(false);
-
+  const [isCompleting, setIsCompleting] = useState(false);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -175,6 +177,47 @@ export default function ChallengeDetailPage({
     }
   };
 
+  const handleCompleteChallenge = async () => {
+    if (!user || !challenge || !userChallenge) return;
+    setIsCompleting(true);
+
+    try {
+        const batch = writeBatch(db);
+        
+        // Update user_challenge document
+        const userChallengeRef = doc(db, 'user_challenges', userChallenge.id);
+        batch.update(userChallengeRef, {
+            progress: 100,
+            completedAt: serverTimestamp(),
+            xpGained: challenge.xp,
+        });
+
+        // Update user's total XP
+        const userRef = doc(db, 'users', user.uid);
+        batch.update(userRef, {
+            xp: increment(challenge.xp),
+        });
+
+        await batch.commit();
+
+        setUserChallenge(prev => prev ? {...prev, progress: 100, completedAt: { seconds: Date.now() / 1000, nanoseconds: 0 }} : null);
+        
+        toast({
+            title: `Challenge Complete!`,
+            description: `You earned ${challenge.xp} XP!`,
+        });
+
+    } catch (error) {
+        console.error('Error completing challenge: ', error);
+        toast({
+            variant: 'destructive',
+            title: 'Error',
+            description: 'Could not complete the challenge. Please try again.',
+        });
+    } finally {
+        setIsCompleting(false);
+    }
+  };
 
   if (loading || authLoading) {
     return <ChallengeDetailSkeleton />;
@@ -183,6 +226,8 @@ export default function ChallengeDetailPage({
   if (!challenge) {
     return <div>Challenge not found.</div>;
   }
+
+  const isChallengeCompleted = userChallenge?.progress === 100;
 
   return (
     <div className="space-y-8">
@@ -200,7 +245,25 @@ export default function ChallengeDetailPage({
               <CardDescription>{challenge.description}</CardDescription>
             </CardHeader>
             <CardContent>
-              {/* Progress tracking UI would go here */}
+                <div className="grid grid-cols-2 gap-4 text-sm text-muted-foreground mb-6">
+                    <div className="flex items-center gap-2">
+                        <Calendar className="h-4 w-4" />
+                        <span>Starts: {format(new Date(challenge.startDate.seconds * 1000), 'MMM d, yyyy')}</span>
+                    </div>
+                     <div className="flex items-center gap-2">
+                        <Calendar className="h-4 w-4" />
+                        <span>Ends: {format(new Date(challenge.endDate.seconds * 1000), 'MMM d, yyyy')}</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                        <Zap className="h-4 w-4" />
+                        <span>Duration: {challenge.duration} days</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                        <Award className="h-4 w-4" />
+                        <span>Reward: {challenge.xp} XP</span>
+                    </div>
+                </div>
+
               {!userChallenge && user && (
                 <p className="text-muted-foreground">You have not joined this challenge yet.</p>
               )}
@@ -211,19 +274,31 @@ export default function ChallengeDetailPage({
                         <Zap className="text-primary" />
                         <span className="text-lg font-bold">{userChallenge.progress}%</span>
                     </div>
-                     <p className="text-sm text-muted-foreground">Keep going! You can do it.</p>
+                    {isChallengeCompleted ? (
+                        <p className="text-sm text-green-600 font-semibold">Challenge completed! Well done!</p>
+                    ): (
+                        <p className="text-sm text-muted-foreground">Keep going! You can do it.</p>
+                    )}
                 </div>
             )}
             </CardContent>
             <CardFooter>
             {!user ? (
                  <Button disabled>Login to Join</Button>
-            ) : userChallenge ? (
-                <Button disabled>Challenge Joined</Button>
-            ) : (
+            ) : !userChallenge ? (
                 <Button onClick={handleJoinChallenge} disabled={isJoining}>
                     <UserPlus className="mr-2 h-4 w-4" />
                     {isJoining ? 'Joining...' : 'Join Challenge'}
+                </Button>
+            ) : isChallengeCompleted ? (
+                 <Button disabled variant="secondary">
+                    <CheckCircle className="mr-2 h-4 w-4" />
+                    Completed
+                </Button>
+            ) : (
+                <Button onClick={handleCompleteChallenge} disabled={isCompleting}>
+                    <Award className="mr-2 h-4 w-4" />
+                    {isCompleting ? 'Completing...' : 'Mark as Complete'}
                 </Button>
             )}
             </CardFooter>
@@ -250,6 +325,12 @@ function ChallengeDetailSkeleton() {
               <Skeleton className="h-4 w-5/6" />
             </CardHeader>
             <CardContent>
+              <div className="grid grid-cols-2 gap-4 mb-6">
+                <Skeleton className="h-5 w-3/4" />
+                <Skeleton className="h-5 w-3/4" />
+                <Skeleton className="h-5 w-2/3" />
+                <Skeleton className="h-5 w-2/3" />
+              </div>
               <Skeleton className="h-5 w-1/2" />
             </CardContent>
             <CardFooter>

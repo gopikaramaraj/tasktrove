@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import {
   Form,
   FormControl,
+  FormDescription,
   FormField,
   FormItem,
   FormLabel,
@@ -16,14 +17,26 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
-import { addDoc, collection, serverTimestamp } from 'firebase/firestore';
+import { addDoc, collection, serverTimestamp, Timestamp } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useAuth } from '@/hooks/use-auth';
+import { Popover, PopoverContent, PopoverTrigger } from '../ui/popover';
+import { CalendarIcon } from 'lucide-react';
+import { Calendar } from '../ui/calendar';
+import { cn } from '@/lib/utils';
+import { format } from 'date-fns';
 
 const formSchema = z.object({
   title: z.string().min(5, { message: 'Challenge title must be at least 5 characters.' }).max(100),
   description: z.string().min(10, { message: 'Description must be at least 10 characters.' }).max(500),
+  startDate: z.date({ required_error: 'A start date is required.' }),
+  endDate: z.date({ required_error: 'An end date is required.' }),
+  xp: z.coerce.number().min(10, { message: 'XP must be at least 10.' }).max(1000, { message: 'XP cannot exceed 1000.' }),
+}).refine((data) => data.endDate > data.startDate, {
+  message: "End date must be after the start date.",
+  path: ["endDate"],
 });
+
 
 interface CreateChallengeFormProps {
     communityId: string;
@@ -39,6 +52,7 @@ export function CreateChallengeForm({ communityId }: CreateChallengeFormProps) {
     defaultValues: {
       title: '',
       description: '',
+      xp: 100,
     },
   });
 
@@ -60,6 +74,8 @@ export function CreateChallengeForm({ communityId }: CreateChallengeFormProps) {
         return;
     }
 
+    const duration = Math.ceil((values.endDate.getTime() - values.startDate.getTime()) / (1000 * 60 * 60 * 24));
+
     try {
       await addDoc(collection(db, 'communities', communityId, 'challenges'), {
         title: values.title,
@@ -68,6 +84,10 @@ export function CreateChallengeForm({ communityId }: CreateChallengeFormProps) {
         communityId: communityId,
         participantCount: 0,
         createdAt: serverTimestamp(),
+        startDate: Timestamp.fromDate(values.startDate),
+        endDate: Timestamp.fromDate(values.endDate),
+        duration: duration,
+        xp: values.xp,
       });
 
       toast({
@@ -113,6 +133,98 @@ export function CreateChallengeForm({ communityId }: CreateChallengeFormProps) {
                   {...field}
                 />
               </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+            <FormField
+            control={form.control}
+            name="startDate"
+            render={({ field }) => (
+                <FormItem className="flex flex-col">
+                <FormLabel>Start Date</FormLabel>
+                <Popover>
+                    <PopoverTrigger asChild>
+                    <FormControl>
+                        <Button
+                        variant={"outline"}
+                        className={cn(
+                            "w-full pl-3 text-left font-normal",
+                            !field.value && "text-muted-foreground"
+                        )}
+                        >
+                        {field.value ? (
+                            format(field.value, "PPP")
+                        ) : (
+                            <span>Pick a date</span>
+                        )}
+                        <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                        </Button>
+                    </FormControl>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar
+                        mode="single"
+                        selected={field.value}
+                        onSelect={field.onChange}
+                        initialFocus
+                    />
+                    </PopoverContent>
+                </Popover>
+                <FormMessage />
+                </FormItem>
+            )}
+            />
+            <FormField
+            control={form.control}
+            name="endDate"
+            render={({ field }) => (
+                <FormItem className="flex flex-col">
+                <FormLabel>End Date</FormLabel>
+                <Popover>
+                    <PopoverTrigger asChild>
+                    <FormControl>
+                        <Button
+                        variant={"outline"}
+                        className={cn(
+                            "w-full pl-3 text-left font-normal",
+                            !field.value && "text-muted-foreground"
+                        )}
+                        >
+                        {field.value ? (
+                            format(field.value, "PPP")
+                        ) : (
+                            <span>Pick a date</span>
+                        )}
+                        <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                        </Button>
+                    </FormControl>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar
+                        mode="single"
+                        selected={field.value}
+                        onSelect={field.onChange}
+                        initialFocus
+                    />
+                    </PopoverContent>
+                </Popover>
+                <FormMessage />
+                </FormItem>
+            )}
+            />
+        </div>
+        <FormField
+          control={form.control}
+          name="xp"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>XP Reward</FormLabel>
+              <FormControl>
+                <Input type="number" placeholder="100" {...field} />
+              </FormControl>
+              <FormDescription>XP awarded for completing the challenge.</FormDescription>
               <FormMessage />
             </FormItem>
           )}

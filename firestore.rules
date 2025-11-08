@@ -53,8 +53,9 @@ service cloud.firestore {
       // - Authenticated users can create challenges
       // - Only the creator can update/delete a challenge (future implementation)
       match /challenges/{challengeId} {
-        allow read, create: if isAuthenticated();
-        // Add update/delete rules later if needed
+        allow read: if isAuthenticated();
+        allow create: if isCommunityOwner(communityId);
+        allow update: if isCommunityOwner(communityId) && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['participantCount']);
       }
     }
     
@@ -62,11 +63,12 @@ service cloud.firestore {
     // - Track user progress in specific challenges
     // - Users can create their own user_challenge doc (join challenge)
     // - Users can only read their own user_challenge docs
-    // - Users can only update their own user_challenge docs
+    // - Users can only update their own user_challenge docs for progress
     // - Challenge participants can read other participants' progress for leaderboards
     match /user_challenges/{userChallengeId} {
         allow create: if isAuthenticated() && isOwner(request.resource.data.userId);
-        allow read, update: if isAuthenticated() && isOwner(resource.data.userId);
+        allow read: if isAuthenticated() && isOwner(resource.data.userId);
+        allow update: if isAuthenticated() && isOwner(resource.data.userId) && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['progress', 'completedAt', 'xpGained']);
         allow list: if isAuthenticated();
     }
 
