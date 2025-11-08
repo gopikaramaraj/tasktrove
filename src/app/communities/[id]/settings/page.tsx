@@ -34,7 +34,7 @@ import {
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { Skeleton } from '@/components/ui/skeleton';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, use } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import type { Community, User } from '@/lib/types';
 import { ArrowLeft, Clipboard, Trash2 } from 'lucide-react';
@@ -322,20 +322,20 @@ export default function CommunitySettingsPage() {
             <CardContent className="space-y-4">
                 {members.map((member) => (
                 <div key={member.id} className="flex items-center justify-between p-2 rounded-md bg-secondary">
-                    <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-3 min-w-0">
                     <Avatar>
                         <AvatarImage src={member.avatarUrl} alt={member.name} data-ai-hint="person"/>
                         <AvatarFallback>{member.name.charAt(0)}</AvatarFallback>
                     </Avatar>
-                    <div>
-                        <p className="font-semibold">{member.name}</p>
-                        <p className="text-xs text-muted-foreground">{member.email}</p>
+                    <div className="min-w-0">
+                        <p className="font-semibold truncate">{member.name}</p>
+                        <p className="text-xs text-muted-foreground truncate">{member.email}</p>
                     </div>
                     </div>
                     {user?.uid !== member.id && (
                     <AlertDialog>
                         <AlertDialogTrigger asChild>
-                            <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive">
+                            <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive flex-shrink-0">
                                 <Trash2 className="h-4 w-4" />
                             </Button>
                         </AlertDialogTrigger>
