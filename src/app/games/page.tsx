@@ -15,7 +15,7 @@ export default function GamesPage() {
     },
     {
       title: 'Wordle',
-      url: 'https://wordle-in-react.vercel.app/',
+      url: 'https://wordlegame.vercel.app/',
     },
     {
       title: '2048',
