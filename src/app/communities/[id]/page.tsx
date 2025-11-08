@@ -9,16 +9,18 @@ import { Leaderboard } from '@/components/communities/Leaderboard';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { LiveCheckinDialog } from '@/components/communities/LiveCheckinDialog';
 import { useEffect, useState, use } from 'react';
-import { collection, doc, getDoc, getDocs, writeBatch, deleteDoc, increment } from 'firebase/firestore';
+import { collection, doc, getDoc, getDocs, writeBatch, deleteDoc, increment, setDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Card, CardContent, CardTitle } from '@/components/ui/card';
 import Link from 'next/link';
 import { useAuth } from '@/hooks/use-auth';
 import { useToast } from '@/hooks/use-toast';
+import { errorEmitter } from '@/firebase/error-emitter';
+import { FirestorePermissionError } from '@/firebase/errors';
 
 export default function CommunityDetailPage({ params }: { params: { id: string } }) {
-  const { id } = use(params);
+  const id = use(params.id);
   const { user } = useAuth();
   const { toast } = useToast();
   const [community, setCommunity] = useState<Community | null>(null);
@@ -86,39 +88,54 @@ export default function CommunityDetailPage({ params }: { params: { id: string }
     const communityDocRef = doc(db, 'communities', community.id);
     const currentUserData = members.find(m => m.id === user.uid);
 
-    try {
-        if (isMember) {
-            // Leave community
-            batch.delete(memberDocRef);
-            batch.update(communityDocRef, { memberCount: increment(-1) });
-            await batch.commit();
-
-            setMembers(prev => prev.filter(m => m.id !== user.uid));
-            setCommunity(prev => prev ? {...prev, memberCount: prev.memberCount - 1} : null);
-            setIsMember(false);
-            toast({ title: 'Community Left', description: `You have left ${community.name}.` });
-        } else {
-            // Join community
-            batch.set(memberDocRef, { joinedAt: new Date(), role: 'member' });
-            batch.update(communityDocRef, { memberCount: increment(1) });
-            await batch.commit();
-
-            // To update UI instantly, fetch user data if not already in the members list
-            if (currentUserData) {
-                setMembers(prev => [...prev, currentUserData]);
-            } else {
-                const userDoc = await getDoc(doc(db, 'users', user.uid));
-                if(userDoc.exists()) setMembers(prev => [...prev, userDoc.data() as User]);
-            }
-            setCommunity(prev => prev ? {...prev, memberCount: prev.memberCount + 1} : null);
-            setIsMember(true);
-            toast({ title: 'Community Joined!', description: `Welcome to ${community.name}!` });
-        }
-    } catch(error) {
-        console.error('Error joining/leaving community', error);
-        toast({ variant: 'destructive', title: 'Error', description: 'An error occurred. Please try again.' });
+    if (isMember) {
+        // Leave community
+        batch.delete(memberDocRef);
+        batch.update(communityDocRef, { memberCount: increment(-1) });
+        batch.commit()
+            .then(() => {
+                setMembers(prev => prev.filter(m => m.id !== user.uid));
+                setCommunity(prev => prev ? {...prev, memberCount: prev.memberCount - 1} : null);
+                setIsMember(false);
+                toast({ title: 'Community Left', description: `You have left ${community.name}.` });
+                setIsProcessing(false);
+            })
+            .catch(async (serverError) => {
+                const permissionError = new FirestorePermissionError({
+                    path: memberDocRef.path,
+                    operation: 'delete',
+                });
+                errorEmitter.emit('permission-error', permissionError);
+                setIsProcessing(false);
+            });
+    } else {
+        // Join community
+        const memberData = { joinedAt: new Date(), role: 'member' };
+        batch.set(memberDocRef, memberData);
+        batch.update(communityDocRef, { memberCount: increment(1) });
+        batch.commit()
+            .then(async () => {
+                if (currentUserData) {
+                    setMembers(prev => [...prev, currentUserData]);
+                } else {
+                    const userDoc = await getDoc(doc(db, 'users', user.uid));
+                    if(userDoc.exists()) setMembers(prev => [...prev, userDoc.data() as User]);
+                }
+                setCommunity(prev => prev ? {...prev, memberCount: prev.memberCount + 1} : null);
+                setIsMember(true);
+                toast({ title: 'Community Joined!', description: `Welcome to ${community.name}!` });
+                setIsProcessing(false);
+            })
+            .catch(async (serverError) => {
+                const permissionError = new FirestorePermissionError({
+                    path: memberDocRef.path,
+                    operation: 'create',
+                    requestResourceData: memberData,
+                });
+                errorEmitter.emit('permission-error', permissionError);
+                setIsProcessing(false);
+            });
     }
-    setIsProcessing(false);
   }
 
 
