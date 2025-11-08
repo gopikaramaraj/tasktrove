@@ -18,6 +18,7 @@ import { useAuth } from '@/hooks/use-auth';
 import { useToast } from '@/hooks/use-toast';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
+import { cn } from '@/lib/utils';
 
 export default function CommunityDetailPage({ params }: { params: { id: string } }) {
   const { id } = use(params);
@@ -181,7 +182,7 @@ export default function CommunityDetailPage({ params }: { params: { id: string }
           </Card>
       ) : (
         <Tabs defaultValue="challenges" className="w-full">
-            <TabsList className={`grid w-full grid-cols-${isOwner ? '5' : '4'}`}>
+            <TabsList className={cn("grid w-full", isOwner ? "grid-cols-5" : "grid-cols-4")}>
             <TabsTrigger value="challenges">Challenges</TabsTrigger>
             <TabsTrigger value="leaderboard">Leaderboard</TabsTrigger>
             <TabsTrigger value="members">Members</TabsTrigger>
