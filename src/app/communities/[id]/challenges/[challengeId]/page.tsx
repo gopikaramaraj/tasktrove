@@ -246,22 +246,30 @@ export default function ChallengeDetailPage({
             </CardHeader>
             <CardContent>
                 <div className="grid grid-cols-2 gap-4 text-sm text-muted-foreground mb-6">
-                    <div className="flex items-center gap-2">
-                        <Calendar className="h-4 w-4" />
-                        <span>Starts: {format(new Date(challenge.startDate.seconds * 1000), 'MMM d, yyyy')}</span>
-                    </div>
-                     <div className="flex items-center gap-2">
-                        <Calendar className="h-4 w-4" />
-                        <span>Ends: {format(new Date(challenge.endDate.seconds * 1000), 'MMM d, yyyy')}</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                        <Zap className="h-4 w-4" />
-                        <span>Duration: {challenge.duration} days</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                        <Award className="h-4 w-4" />
-                        <span>Reward: {challenge.xp} XP</span>
-                    </div>
+                    {challenge.startDate && (
+                      <div className="flex items-center gap-2">
+                          <Calendar className="h-4 w-4" />
+                          <span>Starts: {format(new Date(challenge.startDate.seconds * 1000), 'MMM d, yyyy')}</span>
+                      </div>
+                    )}
+                     {challenge.endDate && (
+                      <div className="flex items-center gap-2">
+                          <Calendar className="h-4 w-4" />
+                          <span>Ends: {format(new Date(challenge.endDate.seconds * 1000), 'MMM d, yyyy')}</span>
+                      </div>
+                     )}
+                    {challenge.duration > 0 && (
+                      <div className="flex items-center gap-2">
+                          <Zap className="h-4 w-4" />
+                          <span>Duration: {challenge.duration} days</span>
+                      </div>
+                    )}
+                    {challenge.xp > 0 && (
+                      <div className="flex items-center gap-2">
+                          <Award className="h-4 w-4" />
+                          <span>Reward: {challenge.xp} XP</span>
+                      </div>
+                    )}
                 </div>
 
               {!userChallenge && user && (
