@@ -12,7 +12,7 @@ import { useEffect, useState, use } from 'react';
 import { collection, doc, getDoc, getDocs, writeBatch, deleteDoc, increment } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Card } from '@/components/ui/card';
+import { Card, CardContent, CardTitle } from '@/components/ui/card';
 import Link from 'next/link';
 import { useAuth } from '@/hooks/use-auth';
 import { useToast } from '@/hooks/use-toast';

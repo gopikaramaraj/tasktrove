@@ -18,7 +18,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
-import { addDoc, collection, doc, serverTimestamp, setDoc } from 'firebase/firestore';
+import { doc, serverTimestamp, setDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useAuth } from '@/hooks/use-auth';
 
@@ -53,7 +53,11 @@ export function CreateCommunityForm() {
     }
 
     try {
-      const communityDocRef = await addDoc(collection(db, 'communities'), {
+      const communityId = Math.floor(100000000 + Math.random() * 900000000).toString();
+      const communityDocRef = doc(db, 'communities', communityId);
+
+      await setDoc(communityDocRef, {
+        id: communityId,
         name: values.name,
         description: values.description,
         isPrivate: values.isPrivate,
@@ -125,7 +129,7 @@ export function CreateCommunityForm() {
               <div className="space-y-0.5">
                 <FormLabel className="text-base">Private Community</FormLabel>
                 <FormDescription>
-                  If enabled, users will have to request to join.
+                  If enabled, users will have to know the Community ID to join.
                 </FormDescription>
               </div>
               <FormControl>

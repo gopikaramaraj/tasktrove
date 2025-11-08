@@ -8,7 +8,6 @@ import { collection, getDocs, query, where, doc, getDoc, writeBatch, increment }
 import { db, auth } from '@/lib/firebase';
 import { Skeleton } from '@/components/ui/skeleton';
 import Link from 'next/link';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import {
   Dialog,
   DialogContent,
@@ -122,7 +121,7 @@ export default function CommunitiesPage() {
   const [allCommunities, setAllCommunities] = useState<Community[]>([]);
   const [filteredCommunities, setFilteredCommunities] = useState<Community[]>([]);
   const [loading, setLoading] = useState(true);
-  const [filter, setFilter] = useState('all');
+  const [searchTerm, setSearchTerm] = useState('');
 
   useEffect(() => {
     const fetchCommunities = async () => {
@@ -144,11 +143,11 @@ export default function CommunitiesPage() {
 
   useEffect(() => {
     let communities = [...allCommunities];
-    if (filter === 'public') {
-        communities = communities.filter(c => !c.isPrivate);
+    if (searchTerm) {
+        communities = communities.filter(c => c.name.toLowerCase().includes(searchTerm.toLowerCase()));
     }
     setFilteredCommunities(communities);
-  }, [filter, allCommunities]);
+  }, [searchTerm, allCommunities]);
 
 
   return (
@@ -159,15 +158,12 @@ export default function CommunitiesPage() {
           <p className="text-muted-foreground">Find your tribe and start achieving goals together.</p>
         </div>
         <div className="flex items-center gap-4">
-            <Select value={filter} onValueChange={setFilter}>
-                <SelectTrigger className="w-[180px]">
-                    <SelectValue placeholder="Filter communities" />
-                </SelectTrigger>
-                <SelectContent>
-                    <SelectItem value="all">All Communities</SelectItem>
-                    <SelectItem value="public">Public Only</SelectItem>
-                </SelectContent>
-            </Select>
+            <Input 
+                placeholder="Search communities..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-[250px]"
+            />
             <JoinCommunityDialog />
             <Button asChild className="bg-accent hover:bg-accent/90 text-accent-foreground">
                 <Link href="/communities/create">
@@ -190,7 +186,7 @@ export default function CommunitiesPage() {
         </div>
       ) : (
          <div className="text-center p-8 border-2 border-dashed rounded-lg bg-secondary col-span-full">
-            <p className="text-muted-foreground">No communities found that match your filter.</p>
+            <p className="text-muted-foreground">No communities found that match your search.</p>
         </div>
       )}
     </div>

@@ -36,7 +36,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { useEffect, useState, use } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import type { Community, User } from '@/lib/types';
-import { ArrowLeft, Trash2 } from 'lucide-react';
+import { ArrowLeft, Clipboard, Trash2 } from 'lucide-react';
 import Link from 'next/link';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import {
@@ -50,6 +50,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
+import { Badge } from '@/components/ui/badge';
 
 const settingsFormSchema = z.object({
   name: z
@@ -215,6 +216,13 @@ export default function CommunitySettingsPage() {
     }
   }
 
+  const copyCommunityId = () => {
+    if (community) {
+      navigator.clipboard.writeText(community.id);
+      toast({ title: 'Copied!', description: 'Community ID copied to clipboard.' });
+    }
+  };
+
   if (loading || authLoading || !community) {
     return <SettingsSkeleton />;
   }
@@ -236,100 +244,118 @@ export default function CommunitySettingsPage() {
         </p>
       </div>
 
-      <div className="grid gap-8 md:grid-cols-2">
-        <Card>
-          <CardHeader>
-            <CardTitle>Community Details</CardTitle>
-            <CardDescription>
-              Update your community&apos;s name and description.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Form {...form}>
-              <form
-                onSubmit={form.handleSubmit(onSubmit)}
-                className="space-y-6"
-              >
-                <FormField
-                  control={form.control}
-                  name="name"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Community Name</FormLabel>
-                      <FormControl>
-                        <Input {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="description"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Description</FormLabel>
-                      <FormControl>
-                        <Textarea {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <Button type="submit" disabled={form.formState.isSubmitting}>
-                  {form.formState.isSubmitting ? 'Saving...' : 'Save Changes'}
-                </Button>
-              </form>
-            </Form>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader>
-            <CardTitle>User Management</CardTitle>
-            <CardDescription>
-              View and manage your community members.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {members.map((member) => (
-              <div key={member.id} className="flex items-center justify-between p-2 rounded-md bg-secondary">
-                <div className="flex items-center gap-3">
-                  <Avatar>
-                    <AvatarImage src={member.avatarUrl} alt={member.name} data-ai-hint="person"/>
-                    <AvatarFallback>{member.name.charAt(0)}</AvatarFallback>
-                  </Avatar>
-                  <div>
-                    <p className="font-semibold">{member.name}</p>
-                    <p className="text-xs text-muted-foreground">{member.email}</p>
-                  </div>
-                </div>
-                {user?.uid !== member.id && (
-                  <AlertDialog>
-                    <AlertDialogTrigger asChild>
-                         <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive">
-                            <Trash2 className="h-4 w-4" />
+      <div className="grid gap-8 md:grid-cols-3">
+        <div className="md:col-span-2 grid gap-8">
+            <Card>
+            <CardHeader>
+                <CardTitle>Community Details</CardTitle>
+                <CardDescription>
+                Update your community&apos;s name and description.
+                </CardDescription>
+            </CardHeader>
+            <CardContent>
+                <Form {...form}>
+                <form
+                    onSubmit={form.handleSubmit(onSubmit)}
+                    className="space-y-6"
+                >
+                    <FormField
+                    control={form.control}
+                    name="name"
+                    render={({ field }) => (
+                        <FormItem>
+                        <FormLabel>Community Name</FormLabel>
+                        <FormControl>
+                            <Input {...field} />
+                        </FormControl>
+                        <FormMessage />
+                        </FormItem>
+                    )}
+                    />
+                    <FormField
+                    control={form.control}
+                    name="description"
+                    render={({ field }) => (
+                        <FormItem>
+                        <FormLabel>Description</FormLabel>
+                        <FormControl>
+                            <Textarea {...field} />
+                        </FormControl>
+                        <FormMessage />
+                        </FormItem>
+                    )}
+                    />
+                    <Button type="submit" disabled={form.formState.isSubmitting}>
+                    {form.formState.isSubmitting ? 'Saving...' : 'Save Changes'}
+                    </Button>
+                </form>
+                </Form>
+            </CardContent>
+            </Card>
+        </div>
+        <div className="space-y-8">
+            <Card>
+                <CardHeader>
+                    <CardTitle>Community ID</CardTitle>
+                    <CardDescription>Share this ID to allow others to join your private community.</CardDescription>
+                </CardHeader>
+                <CardContent>
+                    <div className="flex items-center space-x-2">
+                        <Input value={community.id} readOnly />
+                        <Button variant="outline" size="icon" onClick={copyCommunityId}>
+                            <Clipboard className="h-4 w-4" />
                         </Button>
-                    </AlertDialogTrigger>
-                    <AlertDialogContent>
-                        <AlertDialogHeader>
-                            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-                            <AlertDialogDescription>
-                                This will permanently remove "{member.name}" from the community. They will have to rejoin.
-                            </AlertDialogDescription>
-                        </AlertDialogHeader>
-                        <AlertDialogFooter>
-                            <AlertDialogCancel>Cancel</AlertDialogCancel>
-                            <AlertDialogAction onClick={() => handleRemoveMember(member.id)} className="bg-destructive hover:bg-destructive/90">
-                                Remove Member
-                            </AlertDialogAction>
-                        </AlertDialogFooter>
-                    </AlertDialogContent>
-                  </AlertDialog>
-                )}
-              </div>
-            ))}
-          </CardContent>
-        </Card>
+                    </div>
+                </CardContent>
+            </Card>
+            <Card>
+            <CardHeader>
+                <CardTitle>User Management</CardTitle>
+                <CardDescription>
+                View and manage your community members.
+                </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+                {members.map((member) => (
+                <div key={member.id} className="flex items-center justify-between p-2 rounded-md bg-secondary">
+                    <div className="flex items-center gap-3">
+                    <Avatar>
+                        <AvatarImage src={member.avatarUrl} alt={member.name} data-ai-hint="person"/>
+                        <AvatarFallback>{member.name.charAt(0)}</AvatarFallback>
+                    </Avatar>
+                    <div>
+                        <p className="font-semibold">{member.name}</p>
+                        <p className="text-xs text-muted-foreground">{member.email}</p>
+                    </div>
+                    </div>
+                    {user?.uid !== member.id && (
+                    <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                            <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive">
+                                <Trash2 className="h-4 w-4" />
+                            </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                            <AlertDialogHeader>
+                                <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                    This will permanently remove "{member.name}" from the community. They will have to rejoin.
+                                </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                <AlertDialogAction onClick={() => handleRemoveMember(member.id)} className="bg-destructive hover:bg-destructive/90">
+                                    Remove Member
+                                </AlertDialogAction>
+                            </AlertDialogFooter>
+                        </AlertDialogContent>
+                    </AlertDialog>
+                    )}
+                </div>
+                ))}
+            </CardContent>
+            </Card>
+        </div>
       </div>
     </div>
   );
@@ -343,44 +369,57 @@ function SettingsSkeleton() {
         <Skeleton className="h-9 w-1/3 mb-2" />
         <Skeleton className="h-5 w-1/2" />
       </div>
-      <div className="grid gap-8 md:grid-cols-2">
-        <Card>
-          <CardHeader>
-            <Skeleton className="h-7 w-1/2 mb-2" />
-            <Skeleton className="h-4 w-full" />
-          </CardHeader>
-          <CardContent className="space-y-6">
-            <div className="space-y-2">
-              <Skeleton className="h-4 w-1/4" />
-              <Skeleton className="h-10 w-full" />
-            </div>
-            <div className="space-y-2">
-              <Skeleton className="h-4 w-1/4" />
-              <Skeleton className="h-20 w-full" />
-            </div>
-            <Skeleton className="h-10 w-32" />
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader>
-            <Skeleton className="h-7 w-1/2 mb-2" />
-            <Skeleton className="h-4 w-full" />
-          </CardHeader>
-          <CardContent className="space-y-4">
-             {[...Array(3)].map((_, i) => (
-                <div key={i} className="flex items-center justify-between p-2">
-                    <div className="flex items-center gap-3">
-                        <Skeleton className="h-10 w-10 rounded-full" />
-                        <div className="space-y-2">
-                            <Skeleton className="h-4 w-24" />
-                            <Skeleton className="h-3 w-32" />
-                        </div>
-                    </div>
-                    <Skeleton className="h-8 w-8" />
+      <div className="grid gap-8 md:grid-cols-3">
+        <div className="md:col-span-2">
+            <Card>
+            <CardHeader>
+                <Skeleton className="h-7 w-1/2 mb-2" />
+                <Skeleton className="h-4 w-full" />
+            </CardHeader>
+            <CardContent className="space-y-6">
+                <div className="space-y-2">
+                <Skeleton className="h-4 w-1/4" />
+                <Skeleton className="h-10 w-full" />
                 </div>
-            ))}
-          </CardContent>
-        </Card>
+                <div className="space-y-2">
+                <Skeleton className="h-4 w-1/4" />
+                <Skeleton className="h-20 w-full" />
+                </div>
+                <Skeleton className="h-10 w-32" />
+            </CardContent>
+            </Card>
+        </div>
+        <div className="space-y-8">
+            <Card>
+                <CardHeader>
+                    <Skeleton className="h-7 w-1/3 mb-2" />
+                    <Skeleton className="h-4 w-full" />
+                </CardHeader>
+                <CardContent>
+                    <Skeleton className="h-10 w-full" />
+                </CardContent>
+            </Card>
+            <Card>
+            <CardHeader>
+                <Skeleton className="h-7 w-1/2 mb-2" />
+                <Skeleton className="h-4 w-full" />
+            </CardHeader>
+            <CardContent className="space-y-4">
+                {[...Array(3)].map((_, i) => (
+                    <div key={i} className="flex items-center justify-between p-2">
+                        <div className="flex items-center gap-3">
+                            <Skeleton className="h-10 w-10 rounded-full" />
+                            <div className="space-y-2">
+                                <Skeleton className="h-4 w-24" />
+                                <Skeleton className="h-3 w-32" />
+                            </div>
+                        </div>
+                        <Skeleton className="h-8 w-8" />
+                    </div>
+                ))}
+            </CardContent>
+            </Card>
+        </div>
       </div>
     </div>
   );
