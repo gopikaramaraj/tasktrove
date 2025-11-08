@@ -8,6 +8,7 @@ import {
   Card,
   CardContent,
   CardDescription,
+  CardFooter,
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
@@ -31,6 +32,7 @@ import {
   getDocs,
   updateDoc,
   increment,
+  writeBatch,
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -78,6 +80,7 @@ export default function CommunitySettingsPage() {
   const [community, setCommunity] = useState<Community | null>(null);
   const [members, setMembers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const form = useForm<SettingsFormValues>({
     resolver: zodResolver(settingsFormSchema),
@@ -196,12 +199,10 @@ export default function CommunitySettingsPage() {
     const communityDocRef = doc(db, 'communities', community.id);
     
     try {
-        await deleteDoc(memberDocRef);
-
-        // Also update member count on the community doc
-        await updateDoc(communityDocRef, {
-            memberCount: increment(-1)
-        });
+        const batch = writeBatch(db);
+        batch.delete(memberDocRef);
+        batch.update(communityDocRef, { memberCount: increment(-1) });
+        await batch.commit();
 
         setMembers(prev => prev.filter(m => m.id !== memberId));
         setCommunity(prev => prev ? {...prev, memberCount: prev.memberCount - 1} : null);
@@ -219,6 +220,30 @@ export default function CommunitySettingsPage() {
        errorEmitter.emit('permission-error', permissionError);
     }
   }
+
+  const handleDeleteCommunity = async () => {
+    if (!community) return;
+    setIsDeleting(true);
+    try {
+      // NOTE: Deleting a document does not delete its subcollections.
+      // For a production app, a Cloud Function would be needed to clean up members, challenges, etc.
+      await deleteDoc(doc(db, 'communities', community.id));
+      toast({
+        title: 'Community Deleted',
+        description: `The "${community.name}" community has been permanently deleted.`,
+      });
+      router.push('/communities');
+    } catch (error) {
+      console.error("Error deleting community:", error);
+      const permissionError = new FirestorePermissionError({
+        path: doc(db, 'communities', community.id).path,
+        operation: 'delete',
+      });
+      errorEmitter.emit('permission-error', permissionError);
+      setIsDeleting(false);
+    }
+  };
+
 
   const copyCommunityId = () => {
     if (community) {
@@ -295,6 +320,45 @@ export default function CommunitySettingsPage() {
                 </form>
                 </Form>
             </CardContent>
+            </Card>
+
+            <Card className="border-destructive">
+                <CardHeader>
+                    <CardTitle className="text-destructive">Danger Zone</CardTitle>
+                    <CardDescription>
+                        These actions are permanent and cannot be undone.
+                    </CardDescription>
+                </CardHeader>
+                <CardContent>
+                    <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                            <Button variant="destructive">
+                                <Trash2 className="mr-2 h-4 w-4" />
+                                Delete Community
+                            </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                            <AlertDialogHeader>
+                                <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                    This action cannot be undone. This will permanently delete the
+                                    <strong className="mx-1">&quot;{community.name}&quot;</strong>
+                                    community and all of its data.
+                                </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                <AlertDialogAction
+                                    onClick={handleDeleteCommunity}
+                                    disabled={isDeleting}
+                                    className="bg-destructive hover:bg-destructive/90"
+                                >
+                                    {isDeleting ? 'Deleting...' : 'Yes, delete it'}
+                                </AlertDialogAction>
+                            </AlertDialogFooter>
+                        </AlertDialogContent>
+                    </AlertDialog>
+                </CardContent>
             </Card>
         </div>
         <div className="space-y-8">
@@ -374,7 +438,7 @@ function SettingsSkeleton() {
         <Skeleton className="h-5 w-1/2" />
       </div>
       <div className="grid gap-8 md:grid-cols-3">
-        <div className="md:col-span-2">
+        <div className="md:col-span-2 grid gap-8">
             <Card>
             <CardHeader>
                 <Skeleton className="h-7 w-1/2 mb-2" />
@@ -391,6 +455,15 @@ function SettingsSkeleton() {
                 </div>
                 <Skeleton className="h-10 w-32" />
             </CardContent>
+            </Card>
+            <Card>
+                <CardHeader>
+                    <Skeleton className="h-7 w-1/3 mb-2" />
+                    <Skeleton className="h-4 w-full" />
+                </CardHeader>
+                <CardContent>
+                   <Skeleton className="h-10 w-36" />
+                </CardContent>
             </Card>
         </div>
         <div className="space-y-8">
@@ -428,7 +501,3 @@ function SettingsSkeleton() {
     </div>
   );
 }
-
-    
-
-    
