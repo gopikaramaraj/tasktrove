@@ -2,7 +2,7 @@
 import Image from 'next/image';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
-import { UserPlus, PlusCircle, Video, Settings, LogOut, Check } from 'lucide-react';
+import { UserPlus, PlusCircle, Video, Settings, LogOut, Check, Trash2 } from 'lucide-react';
 import type { Challenge, User, Community } from '@/lib/types';
 import { ChallengeCard } from '@/components/communities/ChallengeCard';
 import { Leaderboard } from '@/components/communities/Leaderboard';
@@ -12,13 +12,25 @@ import { useEffect, useState, use } from 'react';
 import { collection, doc, getDoc, getDocs, writeBatch, deleteDoc, increment, setDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Card, CardContent, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardTitle, CardHeader, CardDescription } from '@/components/ui/card';
 import Link from 'next/link';
 import { useAuth } from '@/hooks/use-auth';
 import { useToast } from '@/hooks/use-toast';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
 import { cn } from '@/lib/utils';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
+import { format } from 'date-fns';
 
 export default function CommunityDetailPage({ params }: { params: { id: string } }) {
   const { id } = use(params);
@@ -139,6 +151,25 @@ export default function CommunityDetailPage({ params }: { params: { id: string }
     }
   }
 
+  const handleDeleteChallenge = async (challengeId: string) => {
+    if (!community) return;
+    try {
+        await deleteDoc(doc(db, 'communities', community.id, 'challenges', challengeId));
+        setChallenges(prev => prev.filter(c => c.id !== challengeId));
+        toast({
+            title: "Challenge Deleted",
+            description: "The challenge has been removed from the community."
+        });
+    } catch(error) {
+        console.error("Error deleting challenge:", error);
+        const permissionError = new FirestorePermissionError({
+            path: doc(db, 'communities', community.id, 'challenges', challengeId).path,
+            operation: 'delete',
+        });
+        errorEmitter.emit('permission-error', permissionError);
+    }
+  }
+
 
   if (loading) {
     return <CommunityDetailSkeleton />
@@ -187,7 +218,7 @@ export default function CommunityDetailPage({ params }: { params: { id: string }
             <TabsTrigger value="leaderboard">Leaderboard</TabsTrigger>
             <TabsTrigger value="members">Members</TabsTrigger>
             <TabsTrigger value="checkins">Live Check-ins</TabsTrigger>
-            {isOwner && <TabsTrigger value="settings">Settings</TabsTrigger>}
+            {isOwner && <TabsTrigger value="manage-challenges">Manage Challenges</TabsTrigger>}
             </TabsList>
             <TabsContent value="challenges" className="mt-6">
                 <div className="flex items-center justify-between mb-6">
@@ -241,15 +272,55 @@ export default function CommunityDetailPage({ params }: { params: { id: string }
                 </div>
             </TabsContent>
             {isOwner && (
-                <TabsContent value="settings" className="mt-6">
-                    <div className="text-center p-8 border-2 border-dashed rounded-lg bg-secondary">
-                        <Settings className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
-                        <h3 className="text-xl font-semibold font-headline">Community Settings</h3>
-                        <p className="text-muted-foreground mb-4">Manage your community settings here.</p>
-                        <Button asChild>
-                            <Link href={`/communities/${id}/settings`}>Go to Settings</Link>
-                        </Button>
-                    </div>
+                <TabsContent value="manage-challenges" className="mt-6">
+                    <Card>
+                        <CardHeader>
+                            <CardTitle>Manage Challenges</CardTitle>
+                            <CardDescription>
+                                Here you can edit, archive, or delete challenges for this community.
+                            </CardDescription>
+                        </CardHeader>
+                        <CardContent className="space-y-4">
+                            {challenges.length > 0 ? (
+                                challenges.map((challenge) => (
+                                    <div key={challenge.id} className="flex items-center justify-between p-3 rounded-lg bg-secondary">
+                                        <div className="min-w-0">
+                                            <p className="font-semibold truncate">{challenge.title}</p>
+                                            <p className="text-sm text-muted-foreground">
+                                                {challenge.participantCount} Participants | {challenge.xp} XP | Ends: {format(new Date(challenge.endDate.seconds * 1000), 'MMM d, yyyy')}
+                                            </p>
+                                        </div>
+                                        <div className="flex items-center gap-2 flex-shrink-0">
+                                            <Button variant="outline" size="sm" disabled>Archive</Button>
+                                            <AlertDialog>
+                                                <AlertDialogTrigger asChild>
+                                                    <Button variant="destructive" size="sm">
+                                                        <Trash2 className="h-4 w-4" />
+                                                    </Button>
+                                                </AlertDialogTrigger>
+                                                <AlertDialogContent>
+                                                    <AlertDialogHeader>
+                                                        <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                                                        <AlertDialogDescription>
+                                                            This will permanently delete the "{challenge.title}" challenge and all its data. This action cannot be undone.
+                                                        </AlertDialogDescription>
+                                                    </AlertDialogHeader>
+                                                    <AlertDialogFooter>
+                                                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                                        <AlertDialogAction onClick={() => handleDeleteChallenge(challenge.id)} className="bg-destructive hover:bg-destructive/90">
+                                                            Delete Challenge
+                                                        </AlertDialogAction>
+                                                    </AlertDialogFooter>
+                                                </AlertDialogContent>
+                                            </AlertDialog>
+                                        </div>
+                                    </div>
+                                ))
+                            ) : (
+                                <p className="text-muted-foreground text-center p-4">No challenges to manage.</p>
+                            )}
+                        </CardContent>
+                    </Card>
                 </TabsContent>
             )}
         </Tabs>

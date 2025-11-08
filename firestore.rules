@@ -50,12 +50,13 @@ service cloud.firestore {
 
       // Community Challenges Subcollection
       // - Authenticated users can read challenges
-      // - Authenticated users can create challenges
-      // - Only the creator can update/delete a challenge (future implementation)
+      // - The community owner can create or update challenges
+      // - The community owner can delete challenges
       match /challenges/{challengeId} {
         allow read: if isAuthenticated();
         allow create: if isCommunityOwner(communityId);
         allow update: if isCommunityOwner(communityId) && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['participantCount']);
+        allow delete: if isCommunityOwner(communityId);
       }
     }
     
