@@ -15,7 +15,7 @@ import { Button } from '@/components/ui/button';
 export default function CreateChallengePage() {
     const { user, loading: authLoading } = useAuth();
     const router = useRouter();
-    const params = useParams();
+    const params = use(useParams());
     const communityId = params.id as string;
     const [community, setCommunity] = useState<Community | null>(null);
     const [loading, setLoading] = useState(true);

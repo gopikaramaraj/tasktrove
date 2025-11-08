@@ -68,7 +68,7 @@ type SettingsFormValues = z.infer<typeof settingsFormSchema>;
 export default function CommunitySettingsPage() {
   const { user, loading: authLoading } = useAuth();
   const router = useRouter();
-  const params = useParams();
+  const params = use(useParams());
   const { toast } = useToast();
   const communityId = params.id as string;
 

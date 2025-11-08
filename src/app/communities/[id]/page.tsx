@@ -20,7 +20,7 @@ import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
 
 export default function CommunityDetailPage({ params }: { params: { id: string } }) {
-  const id = use(params.id);
+  const { id } = use(params);
   const { user } = useAuth();
   const { toast } = useToast();
   const [community, setCommunity] = useState<Community | null>(null);
