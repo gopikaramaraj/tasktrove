@@ -4,7 +4,7 @@ import { CreateChallengeForm } from '@/components/communities/CreateChallengeFor
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useAuth } from '@/hooks/use-auth';
 import { useRouter, useParams } from 'next/navigation';
-import { use, useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { doc, getDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import type { Community } from '@/lib/types';
@@ -15,7 +15,7 @@ import { Button } from '@/components/ui/button';
 export default function CreateChallengePage() {
     const { user, loading: authLoading } = useAuth();
     const router = useRouter();
-    const params = use(useParams());
+    const params = useParams();
     const communityId = params.id as string;
     const [community, setCommunity] = useState<Community | null>(null);
     const [loading, setLoading] = useState(true);
