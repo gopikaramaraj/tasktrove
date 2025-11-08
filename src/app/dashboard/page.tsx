@@ -8,15 +8,17 @@ import { StatCard } from '@/components/dashboard/StatCard';
 import { useAuth } from '@/hooks/use-auth';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useEffect, useState } from 'react';
-import { collection, query, where, getDocs } from 'firebase/firestore';
+import { collection, query, where, getDocs, orderBy, limit } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
-import { UserHabit } from '@/lib/types';
+import { UserChallenge, UserHabit } from '@/lib/types';
 import { differenceInCalendarDays } from 'date-fns';
+import { RecentChallenges } from '@/components/dashboard/RecentChallenges';
 
 export default function DashboardPage() {
   const { userData, loading: authLoading } = useAuth();
   const [challengesDone, setChallengesDone] = useState(0);
   const [currentStreak, setCurrentStreak] = useState(0);
+  const [recentChallenges, setRecentChallenges] = useState<UserChallenge[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -28,13 +30,26 @@ export default function DashboardPage() {
       setLoading(true);
 
       // Fetch completed challenges
-      const challengesQuery = query(
+      const completedChallengesQuery = query(
         collection(db, 'user_challenges'),
         where('userId', '==', userData.id),
         where('progress', '==', 100)
       );
-      const challengesSnapshot = await getDocs(challengesQuery);
-      setChallengesDone(challengesSnapshot.size);
+      const completedChallengesSnapshot = await getDocs(completedChallengesQuery);
+      setChallengesDone(completedChallengesSnapshot.size);
+
+       // Fetch recent user challenges
+      const recentChallengesQuery = query(
+        collection(db, 'user_challenges'),
+        where('userId', '==', userData.id),
+        orderBy('joinedAt', 'desc'),
+        limit(3)
+      );
+      const recentChallengesSnapshot = await getDocs(recentChallengesQuery);
+      setRecentChallenges(
+        recentChallengesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as UserChallenge))
+      );
+
 
       // Fetch habits to calculate streak
       const habitsQuery = query(
@@ -94,6 +109,8 @@ export default function DashboardPage() {
         <h2 className="text-3xl font-bold tracking-tight font-headline">Welcome back, {userData.name}!</h2>
         <p className="text-muted-foreground">Here&apos;s a look at your progress. Keep it up!</p>
       </div>
+
+      <RecentChallenges challenges={recentChallenges} />
       
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
         <StatCard title="XP Points" value={userData.xp.toLocaleString()} icon={<Star className="text-primary" />} description="Keep earning XP!" />
@@ -146,6 +163,18 @@ function DashboardSkeleton() {
         <Skeleton className="h-9 w-1/2 mb-2" />
         <Skeleton className="h-5 w-3/4" />
       </div>
+
+      <Card>
+        <CardHeader>
+          <Skeleton className="h-7 w-1/4" />
+        </CardHeader>
+        <CardContent className="grid gap-4 md:grid-cols-3">
+          <Skeleton className="h-24 w-full" />
+          <Skeleton className="h-24 w-full" />
+          <Skeleton className="h-24 w-full" />
+        </CardContent>
+      </Card>
+
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
         <Card><CardHeader><Skeleton className="h-5 w-1/3 mb-2" /><Skeleton className="h-8 w-1/2" /><Skeleton className="h-4 w-1/2 mt-1" /></CardHeader></Card>
         <Card><CardHeader><Skeleton className="h-5 w-1/3 mb-2" /><Skeleton className="h-8 w-1/2" /><Skeleton className="h-4 w-1/2 mt-1" /></CardHeader></Card>
