@@ -122,6 +122,8 @@ export default function ProfilePage() {
   if (loading || !userData) {
       return <ProfileSkeleton />;
   }
+  
+  const isPasswordUser = user?.providerData[0]?.providerId === 'password';
 
   return (
     <div className="space-y-8">
@@ -149,9 +151,9 @@ export default function ProfilePage() {
 
         <div className="lg:col-span-2">
             <Tabs defaultValue="account">
-                <TabsList className="grid w-full grid-cols-2">
+                <TabsList className={`grid w-full ${isPasswordUser ? 'grid-cols-2' : 'grid-cols-1'}`}>
                     <TabsTrigger value="account">Account</TabsTrigger>
-                    <TabsTrigger value="password">Password</TabsTrigger>
+                    {isPasswordUser && <TabsTrigger value="password">Password</TabsTrigger>}
                 </TabsList>
                 <TabsContent value="account">
                     <Card>
@@ -209,62 +211,64 @@ export default function ProfilePage() {
                         </CardContent>
                     </Card>
                 </TabsContent>
-                <TabsContent value="password">
-                    <Card>
-                        <CardHeader>
-                            <CardTitle className="font-headline">Change Password</CardTitle>
-                            <CardDescription>Update your password here. It's a good idea to use a strong password.</CardDescription>
-                        </CardHeader>
-                        <CardContent>
-                             <Form {...passwordForm}>
-                                <form onSubmit={passwordForm.handleSubmit(onPasswordSubmit)} className="space-y-6">
-                                    <FormField
-                                    control={passwordForm.control}
-                                    name="currentPassword"
-                                    render={({ field }) => (
-                                        <FormItem>
-                                        <FormLabel>Current Password</FormLabel>
-                                        <FormControl>
-                                            <Input type="password" {...field} />
-                                        </FormControl>
-                                        <FormMessage />
-                                        </FormItem>
-                                    )}
-                                    />
-                                    <FormField
-                                    control={passwordForm.control}
-                                    name="newPassword"
-                                    render={({ field }) => (
-                                        <FormItem>
-                                        <FormLabel>New Password</FormLabel>
-                                        <FormControl>
-                                            <Input type="password" {...field} />
-                                        </FormControl>
-                                        <FormMessage />
-                                        </FormItem>
-                                    )}
-                                    />
-                                    <FormField
-                                    control={passwordForm.control}
-                                    name="confirmPassword"
-                                    render={({ field }) => (
-                                        <FormItem>
-                                        <FormLabel>Confirm New Password</FormLabel>
-                                        <FormControl>
-                                            <Input type="password" {...field} />
-                                        </FormControl>
-                                        <FormMessage />
-                                        </FormItem>
-                                    )}
-                                    />
-                                    <Button type="submit" disabled={passwordForm.formState.isSubmitting}>
-                                        {passwordForm.formState.isSubmitting ? "Updating..." : "Update Password"}
-                                    </Button>
-                                </form>
-                            </Form>
-                        </CardContent>
-                    </Card>
-                </TabsContent>
+                {isPasswordUser && (
+                    <TabsContent value="password">
+                        <Card>
+                            <CardHeader>
+                                <CardTitle className="font-headline">Change Password</CardTitle>
+                                <CardDescription>Update your password here. It's a good idea to use a strong password.</CardDescription>
+                            </CardHeader>
+                            <CardContent>
+                                <Form {...passwordForm}>
+                                    <form onSubmit={passwordForm.handleSubmit(onPasswordSubmit)} className="space-y-6">
+                                        <FormField
+                                        control={passwordForm.control}
+                                        name="currentPassword"
+                                        render={({ field }) => (
+                                            <FormItem>
+                                            <FormLabel>Current Password</FormLabel>
+                                            <FormControl>
+                                                <Input type="password" {...field} />
+                                            </FormControl>
+                                            <FormMessage />
+                                            </FormItem>
+                                        )}
+                                        />
+                                        <FormField
+                                        control={passwordForm.control}
+                                        name="newPassword"
+                                        render={({ field }) => (
+                                            <FormItem>
+                                            <FormLabel>New Password</FormLabel>
+                                            <FormControl>
+                                                <Input type="password" {...field} />
+                                            </FormControl>
+                                            <FormMessage />
+                                            </FormItem>
+                                        )}
+                                        />
+                                        <FormField
+                                        control={passwordForm.control}
+                                        name="confirmPassword"
+                                        render={({ field }) => (
+                                            <FormItem>
+                                            <FormLabel>Confirm New Password</FormLabel>
+                                            <FormControl>
+                                                <Input type="password" {...field} />
+                                            </FormControl>
+                                            <FormMessage />
+                                            </FormItem>
+                                        )}
+                                        />
+                                        <Button type="submit" disabled={passwordForm.formState.isSubmitting}>
+                                            {passwordForm.formState.isSubmitting ? "Updating..." : "Update Password"}
+                                        </Button>
+                                    </form>
+                                </Form>
+                            </CardContent>
+                        </Card>
+                    </TabsContent>
+                )}
 
             </Tabs>
         </div>
@@ -313,3 +317,5 @@ function ProfileSkeleton() {
         </div>
     )
 }
+
+    
