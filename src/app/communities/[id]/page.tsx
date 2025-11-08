@@ -9,7 +9,7 @@ import { Leaderboard } from '@/components/communities/Leaderboard';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { LiveCheckinDialog } from '@/components/communities/LiveCheckinDialog';
 import { useEffect, useState, use } from 'react';
-import { collection, doc, getDoc, getDocs, writeBatch, deleteDoc, increment, setDoc } from 'firebase/firestore';
+import { collection, doc, getDoc, getDocs, writeBatch, deleteDoc, increment, setDoc, query } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Card, CardContent, CardTitle, CardHeader, CardDescription } from '@/components/ui/card';
@@ -132,7 +132,7 @@ export default function CommunityDetailPage({ params }: { params: { id: string }
                     setMembers(prev => [...prev, currentUserData]);
                 } else {
                     const userDoc = await getDoc(doc(db, 'users', user.uid));
-                    if(userDoc.exists()) setMembers(prev => [...prev, userDoc.data() as User]);
+                    if(userDoc.exists()) setMembers(prev => [...prev, {id: userDoc.id, ...userDoc.data()} as User]);
                 }
                 setCommunity(prev => prev ? {...prev, memberCount: prev.memberCount + 1} : null);
                 setIsMember(true);
@@ -191,7 +191,7 @@ export default function CommunityDetailPage({ params }: { params: { id: string }
           <h1 className="text-3xl md:text-5xl font-bold text-white font-headline">{community.name}</h1>
           <p className="text-white/90 max-w-2xl mt-1">{community.description}</p>
         </div>
-        <div className="absolute top-4 right-4">
+        <div className="absolute top-4 right-4 flex items-center gap-2">
             {user && (
                 <Button 
                     className={isMember ? "bg-secondary hover:bg-secondary/80" : "bg-accent hover:bg-accent/90 text-accent-foreground"}
@@ -200,6 +200,14 @@ export default function CommunityDetailPage({ params }: { params: { id: string }
                 >
                     {isMember ? (isOwner ? <><Check className="mr-2 h-4 w-4" />Owner</> : <><LogOut className="mr-2 h-4 w-4" />Leave</>) : <><UserPlus className="mr-2 h-4 w-4" />Join</>}
                 </Button>
+            )}
+             {isOwner && (
+              <Button variant="secondary" asChild>
+                <Link href={`/communities/${id}/settings`}>
+                  <Settings className="mr-2 h-4 w-4" />
+                  Settings
+                </Link>
+              </Button>
             )}
         </div>
       </div>
@@ -287,7 +295,8 @@ export default function CommunityDetailPage({ params }: { params: { id: string }
                                         <div className="min-w-0">
                                             <p className="font-semibold truncate">{challenge.title}</p>
                                             <p className="text-sm text-muted-foreground">
-                                                {challenge.participantCount} Participants | {challenge.xp} XP | Ends: {format(new Date(challenge.endDate.seconds * 1000), 'MMM d, yyyy')}
+                                                {challenge.participantCount || 0} Participants | {challenge.xp || 0} XP
+                                                {challenge.endDate && ` | Ends: ${format(new Date(challenge.endDate.seconds * 1000), 'MMM d, yyyy')}`}
                                             </p>
                                         </div>
                                         <div className="flex items-center gap-2 flex-shrink-0">
