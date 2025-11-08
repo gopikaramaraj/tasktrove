@@ -16,6 +16,7 @@ import { doc, updateDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useEffect } from 'react';
+import { EmailAuthProvider, reauthenticateWithCredential, updatePassword } from 'firebase/auth';
 
 const profileFormSchema = z.object({
   username: z.string().min(3, { message: 'Username must be at least 3 characters.' }),
@@ -23,11 +24,21 @@ const profileFormSchema = z.object({
   bio: z.string().max(160).optional(),
 });
 
+const passwordFormSchema = z.object({
+    currentPassword: z.string().min(1, { message: "Current password is required." }),
+    newPassword: z.string().min(6, { message: 'New password must be at least 6 characters.' }),
+    confirmPassword: z.string(),
+}).refine((data) => data.newPassword === data.confirmPassword, {
+    message: "New passwords don't match",
+    path: ["confirmPassword"],
+});
+
+
 export default function ProfilePage() {
   const { toast } = useToast();
   const { userData, loading, user } = useAuth();
 
-  const form = useForm<z.infer<typeof profileFormSchema>>({
+  const profileForm = useForm<z.infer<typeof profileFormSchema>>({
     resolver: zodResolver(profileFormSchema),
     defaultValues: {
       username: '',
@@ -35,19 +46,28 @@ export default function ProfilePage() {
       bio: '',
     },
   });
+  
+  const passwordForm = useForm<z.infer<typeof passwordFormSchema>>({
+    resolver: zodResolver(passwordFormSchema),
+    defaultValues: {
+      currentPassword: '',
+      newPassword: '',
+      confirmPassword: '',
+    },
+  });
 
   useEffect(() => {
     if (userData) {
-      form.reset({
+      profileForm.reset({
         username: userData.name,
         email: userData.email,
         bio: userData.bio || '',
       });
     }
-  }, [userData, form]);
+  }, [userData, profileForm]);
 
 
-  async function onSubmit(values: z.infer<typeof profileFormSchema>) {
+  async function onProfileSubmit(values: z.infer<typeof profileFormSchema>) {
     if (!user) return;
 
     try {
@@ -66,6 +86,35 @@ export default function ProfilePage() {
             variant: "destructive",
             title: "Update Failed",
             description: "Could not save your changes. Please try again.",
+        });
+    }
+  }
+  
+  async function onPasswordSubmit(values: z.infer<typeof passwordFormSchema>) {
+    if (!user || !user.email) return;
+
+    try {
+        const credential = EmailAuthProvider.credential(user.email, values.currentPassword);
+        await reauthenticateWithCredential(user, credential);
+        
+        await updatePassword(user, values.newPassword);
+
+        toast({
+            title: "Password Updated",
+            description: "Your password has been changed successfully.",
+        });
+        passwordForm.reset();
+
+    } catch (error: any) {
+        console.error("Error updating password: ", error);
+        let description = "Could not update your password. Please try again.";
+        if (error.code === 'auth/wrong-password') {
+            description = "The current password you entered is incorrect.";
+        }
+        toast({
+            variant: "destructive",
+            title: "Update Failed",
+            description: description,
         });
     }
   }
@@ -111,10 +160,10 @@ export default function ProfilePage() {
                             <CardDescription>Make changes to your account here. Click save when you&apos;re done.</CardDescription>
                         </CardHeader>
                         <CardContent>
-                            <Form {...form}>
-                                <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+                            <Form {...profileForm}>
+                                <form onSubmit={profileForm.handleSubmit(onProfileSubmit)} className="space-y-6">
                                     <FormField
-                                    control={form.control}
+                                    control={profileForm.control}
                                     name="username"
                                     render={({ field }) => (
                                         <FormItem>
@@ -127,7 +176,7 @@ export default function ProfilePage() {
                                     )}
                                     />
                                     <FormField
-                                    control={form.control}
+                                    control={profileForm.control}
                                     name="email"
                                     render={({ field }) => (
                                     <FormItem>
@@ -140,7 +189,7 @@ export default function ProfilePage() {
                                     )}
                                     />
                                     <FormField
-                                    control={form.control}
+                                    control={profileForm.control}
                                     name="bio"
                                     render={({ field }) => (
                                         <FormItem>
@@ -152,8 +201,8 @@ export default function ProfilePage() {
                                         </FormItem>
                                     )}
                                     />
-                                    <Button type="submit" disabled={form.formState.isSubmitting}>
-                                        {form.formState.isSubmitting ? "Saving..." : "Save Changes"}
+                                    <Button type="submit" disabled={profileForm.formState.isSubmitting}>
+                                        {profileForm.formState.isSubmitting ? "Saving..." : "Save Changes"}
                                     </Button>
                                 </form>
                             </Form>
@@ -161,29 +210,62 @@ export default function ProfilePage() {
                     </Card>
                 </TabsContent>
                 <TabsContent value="password">
-                     <Card>
+                    <Card>
                         <CardHeader>
                             <CardTitle className="font-headline">Change Password</CardTitle>
                             <CardDescription>Update your password here. It's a good idea to use a strong password.</CardDescription>
                         </CardHeader>
-                        <CardContent className="space-y-4">
-                            <p className="text-sm text-muted-foreground">Password changes are not yet implemented.</p>
-                            <FormItem>
-                                <FormLabel>Current Password</FormLabel>
-                                <Input type="password" disabled />
-                            </FormItem>
-                            <FormItem>
-                                <FormLabel>New Password</FormLabel>
-                                <Input type="password" disabled />
-                            </FormItem>
-                            <FormItem>
-                                <FormLabel>Confirm New Password</FormLabel>
-                                <Input type="password" disabled />
-                            </FormItem>
-                            <Button disabled>Update Password</Button>
+                        <CardContent>
+                             <Form {...passwordForm}>
+                                <form onSubmit={passwordForm.handleSubmit(onPasswordSubmit)} className="space-y-6">
+                                    <FormField
+                                    control={passwordForm.control}
+                                    name="currentPassword"
+                                    render={({ field }) => (
+                                        <FormItem>
+                                        <FormLabel>Current Password</FormLabel>
+                                        <FormControl>
+                                            <Input type="password" {...field} />
+                                        </FormControl>
+                                        <FormMessage />
+                                        </FormItem>
+                                    )}
+                                    />
+                                    <FormField
+                                    control={passwordForm.control}
+                                    name="newPassword"
+                                    render={({ field }) => (
+                                        <FormItem>
+                                        <FormLabel>New Password</FormLabel>
+                                        <FormControl>
+                                            <Input type="password" {...field} />
+                                        </FormControl>
+                                        <FormMessage />
+                                        </FormItem>
+                                    )}
+                                    />
+                                    <FormField
+                                    control={passwordForm.control}
+                                    name="confirmPassword"
+                                    render={({ field }) => (
+                                        <FormItem>
+                                        <FormLabel>Confirm New Password</FormLabel>
+                                        <FormControl>
+                                            <Input type="password" {...field} />
+                                        </FormControl>
+                                        <FormMessage />
+                                        </FormItem>
+                                    )}
+                                    />
+                                    <Button type="submit" disabled={passwordForm.formState.isSubmitting}>
+                                        {passwordForm.formState.isSubmitting ? "Updating..." : "Update Password"}
+                                    </Button>
+                                </form>
+                            </Form>
                         </CardContent>
                     </Card>
                 </TabsContent>
+
             </Tabs>
         </div>
       </div>
