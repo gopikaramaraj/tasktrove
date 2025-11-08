@@ -125,7 +125,7 @@ export default function DashboardPage() {
         <p className="text-muted-foreground">Here&apos;s a look at your progress. Keep it up!</p>
       </div>
 
-      <RecentChallenges challenges={recentChallenges} />
+      {recentChallenges.length > 0 && <RecentChallenges challenges={recentChallenges} />}
       
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
         <StatCard title="XP Points" value={userData.xp.toLocaleString()} icon={<Star className="text-primary" />} description="Keep earning XP!" />
