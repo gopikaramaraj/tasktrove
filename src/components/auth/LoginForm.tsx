@@ -9,7 +9,7 @@ import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
 import { OAuthButtons } from './OAuthButtons';
 import { useRouter } from 'next/navigation';
-import { signInWithEmailAndPassword } from 'firebase/auth';
+import { signInWithEmailAndPassword, setPersistence, browserLocalPersistence } from 'firebase/auth';
 import { auth } from '@/lib/firebase';
 
 const formSchema = z.object({
@@ -31,6 +31,7 @@ export function LoginForm() {
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
     try {
+      await setPersistence(auth, browserLocalPersistence);
       await signInWithEmailAndPassword(auth, values.email, values.password);
       toast({
         title: "Login Successful",

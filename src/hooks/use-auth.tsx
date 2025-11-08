@@ -16,6 +16,8 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | null>(null);
 
+const publicRoutes = ['/login', '/signup', '/'];
+
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [userData, setUserData] = useState<AppUser | null>(null);
@@ -38,7 +40,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
       } else {
         setUserData(null);
-        if (!['/login', '/signup', '/'].includes(pathname)) {
+        if (!publicRoutes.includes(pathname)) {
             router.push('/login');
         }
       }

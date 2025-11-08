@@ -3,7 +3,7 @@
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
-import { GoogleAuthProvider, signInWithPopup } from 'firebase/auth';
+import { GoogleAuthProvider, signInWithPopup, setPersistence, browserLocalPersistence } from 'firebase/auth';
 import { auth, db } from '@/lib/firebase';
 import { doc, setDoc, getDoc } from 'firebase/firestore';
 import imageData from '@/lib/placeholder-images.json';
@@ -22,6 +22,7 @@ export function OAuthButtons() {
     const handleGoogleSignIn = async () => {
         const provider = new GoogleAuthProvider();
         try {
+            await setPersistence(auth, browserLocalPersistence);
             const result = await signInWithPopup(auth, provider);
             const user = result.user;
 
