@@ -21,6 +21,7 @@ import { useRouter } from 'next/navigation';
 import { doc, serverTimestamp, setDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useAuth } from '@/hooks/use-auth';
+import imageData from '@/lib/placeholder-images.json';
 
 const formSchema = z.object({
   name: z.string().min(3, { message: 'Community name must be at least 3 characters.' }).max(50, { message: 'Community name cannot be longer than 50 characters.' }),
@@ -55,6 +56,9 @@ export function CreateCommunityForm() {
     try {
       const communityId = Math.floor(100000000 + Math.random() * 900000000).toString();
       const communityDocRef = doc(db, 'communities', communityId);
+      
+      const randomImageUrl = imageData.images[Math.floor(Math.random() * imageData.images.length)];
+      const randomBannerUrl = imageData.images[Math.floor(Math.random() * imageData.images.length)];
 
       await setDoc(communityDocRef, {
         id: communityId,
@@ -64,8 +68,8 @@ export function CreateCommunityForm() {
         memberCount: 1,
         createdAt: serverTimestamp(),
         ownerId: user.uid,
-        imageUrl: `https://placehold.co/400x300.png?text=${values.name.charAt(0)}`,
-        bannerUrl: `https://placehold.co/1200x400.png`,
+        imageUrl: randomImageUrl,
+        bannerUrl: randomBannerUrl,
       });
       
       // Add the creator as the first member

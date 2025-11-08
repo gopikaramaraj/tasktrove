@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import { GoogleAuthProvider, signInWithPopup } from 'firebase/auth';
 import { auth, db } from '@/lib/firebase';
 import { doc, setDoc, getDoc } from 'firebase/firestore';
+import imageData from '@/lib/placeholder-images.json';
 
 const GoogleIcon = () => (
     <svg className="mr-2 h-4 w-4" aria-hidden="true" focusable="false" data-prefix="fab" data-icon="google" role="img" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 488 512">
@@ -29,12 +30,13 @@ export function OAuthButtons() {
             const userDoc = await getDoc(userDocRef);
 
             if (!userDoc.exists()) {
+                const randomAvatarUrl = imageData.images[Math.floor(Math.random() * imageData.images.length)];
                 // Create a new user document in Firestore
                 await setDoc(userDocRef, {
                     id: user.uid,
                     name: user.displayName,
                     email: user.email,
-                    avatarUrl: user.photoURL || `https://placehold.co/100x100.png?text=${user.displayName?.charAt(0)}`,
+                    avatarUrl: user.photoURL || randomAvatarUrl,
                     xp: 0,
                     level: 1,
                     bio: 'Just joined with Google!',

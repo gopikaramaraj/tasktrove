@@ -12,6 +12,7 @@ import { useRouter } from 'next/navigation';
 import { createUserWithEmailAndPassword, updateProfile } from 'firebase/auth';
 import { auth, db } from '@/lib/firebase';
 import { doc, setDoc } from 'firebase/firestore';
+import imageData from '@/lib/placeholder-images.json';
 
 const formSchema = z.object({
   username: z.string().min(3, { message: 'Username must be at least 3 characters.' }),
@@ -41,11 +42,13 @@ export function SignUpForm() {
         displayName: values.username,
       });
 
+      const randomAvatarUrl = imageData.images[Math.floor(Math.random() * imageData.images.length)];
+
       await setDoc(doc(db, "users", user.uid), {
         id: user.uid,
         name: values.username,
         email: values.email,
-        avatarUrl: `https://placehold.co/100x100.png?text=${values.username.charAt(0)}`,
+        avatarUrl: randomAvatarUrl,
         xp: 0,
         level: 1,
         bio: `I'm new to TaskTrove!`,
