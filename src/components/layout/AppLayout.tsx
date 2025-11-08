@@ -12,7 +12,7 @@ import {
   SidebarInset,
 } from '@/components/ui/sidebar';
 import { Logo } from '@/components/Logo';
-import { Home, Users, Trophy, UserCircle } from 'lucide-react';
+import { Home, Users, Trophy, UserCircle, Gamepad2 } from 'lucide-react';
 import { Header } from './Header';
 import { usePathname } from 'next/navigation';
 
@@ -22,6 +22,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
   const navItems = [
     { href: '/dashboard', label: 'Dashboard', icon: <Home /> },
     { href: '/communities', label: 'Communities', icon: <Users /> },
+    { href: '/games', label: 'Games', icon: <Gamepad2 /> },
     { href: '/profile', label: 'Profile', icon: <UserCircle /> },
   ];
 
