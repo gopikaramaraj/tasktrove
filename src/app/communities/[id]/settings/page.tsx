@@ -30,10 +30,11 @@ import {
   getDoc,
   getDocs,
   updateDoc,
+  increment,
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { Skeleton } from '@/components/ui/skeleton';
-import { useEffect, useState, use } from 'react';
+import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import type { Community, User } from '@/lib/types';
 import { ArrowLeft, Clipboard, Trash2 } from 'lucide-react';
@@ -51,6 +52,8 @@ import {
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import { Badge } from '@/components/ui/badge';
+import { errorEmitter } from '@/firebase/error-emitter';
+import { FirestorePermissionError } from '@/firebase/errors';
 
 const settingsFormSchema = z.object({
   name: z
@@ -68,7 +71,7 @@ type SettingsFormValues = z.infer<typeof settingsFormSchema>;
 export default function CommunitySettingsPage() {
   const { user, loading: authLoading } = useAuth();
   const router = useRouter();
-  const params = use(useParams());
+  const params = useParams();
   const { toast } = useToast();
   const communityId = params.id as string;
 
@@ -177,26 +180,27 @@ export default function CommunitySettingsPage() {
       setCommunity(prev => prev ? {...prev, ...data} : null);
     } catch (error) {
       console.error('Error updating community:', error);
-      toast({
-        variant: 'destructive',
-        title: 'Save Failed',
-        description: 'Could not save changes. Please try again.',
-      });
+       const permissionError = new FirestorePermissionError({
+            path: doc(db, 'communities', community.id).path,
+            operation: 'update',
+            requestResourceData: data
+        });
+       errorEmitter.emit('permission-error', permissionError);
     }
   };
 
   const handleRemoveMember = async (memberId: string) => {
     if (!community || !user || user.uid === memberId) return;
 
+    const memberDocRef = doc(db, 'communities', community.id, 'members', memberId);
+    const communityDocRef = doc(db, 'communities', community.id);
+    
     try {
-        const memberDocRef = doc(db, 'communities', community.id, 'members', memberId);
         await deleteDoc(memberDocRef);
 
         // Also update member count on the community doc
-        const communityDocRef = doc(db, 'communities', community.id);
-        const currentMemberCount = community.memberCount || 0;
         await updateDoc(communityDocRef, {
-            memberCount: currentMemberCount > 0 ? currentMemberCount - 1 : 0
+            memberCount: increment(-1)
         });
 
         setMembers(prev => prev.filter(m => m.id !== memberId));
@@ -208,11 +212,11 @@ export default function CommunitySettingsPage() {
         });
     } catch (error) {
         console.error("Error removing member:", error);
-        toast({
-            variant: "destructive",
-            title: "Error",
-            description: "Could not remove the member. Please try again."
-        })
+         const permissionError = new FirestorePermissionError({
+            path: memberDocRef.path,
+            operation: 'delete',
+        });
+       errorEmitter.emit('permission-error', permissionError);
     }
   }
 
@@ -424,5 +428,7 @@ function SettingsSkeleton() {
     </div>
   );
 }
+
+    
 
     
