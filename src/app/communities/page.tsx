@@ -4,52 +4,84 @@ import { CommunityCard } from '@/components/communities/CommunityCard';
 import type { Community } from '@/lib/types';
 import { PlusCircle } from 'lucide-react';
 import { useEffect, useState } from 'react';
-import { collection, getDocs } from 'firebase/firestore';
+import { collection, getDocs, query, where } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { Skeleton } from '@/components/ui/skeleton';
 import Link from 'next/link';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 export default function CommunitiesPage() {
-  const [communities, setCommunities] = useState<Community[]>([]);
+  const [allCommunities, setAllCommunities] = useState<Community[]>([]);
+  const [filteredCommunities, setFilteredCommunities] = useState<Community[]>([]);
   const [loading, setLoading] = useState(true);
+  const [filter, setFilter] = useState('all');
 
   useEffect(() => {
     const fetchCommunities = async () => {
       setLoading(true);
-      const communitiesCollection = collection(db, 'communities');
-      const communitySnapshot = await getDocs(communitiesCollection);
-      const communitiesList = communitySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Community));
-      setCommunities(communitiesList);
+      try {
+        const communitiesCollection = collection(db, 'communities');
+        const communitySnapshot = await getDocs(communitiesCollection);
+        const communitiesList = communitySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Community));
+        setAllCommunities(communitiesList);
+        setFilteredCommunities(communitiesList);
+      } catch (error) {
+        console.error("Error fetching communities:", error);
+      }
       setLoading(false);
     };
 
     fetchCommunities();
   }, []);
 
+  useEffect(() => {
+    let communities = [...allCommunities];
+    if (filter === 'public') {
+        communities = communities.filter(c => !c.isPrivate);
+    }
+    setFilteredCommunities(communities);
+  }, [filter, allCommunities]);
+
+
   return (
     <div className="space-y-8">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between gap-4 flex-wrap">
         <div>
           <h2 className="text-3xl font-bold tracking-tight font-headline">Explore Communities</h2>
           <p className="text-muted-foreground">Find your tribe and start achieving goals together.</p>
         </div>
-        <Button asChild className="bg-accent hover:bg-accent/90 text-accent-foreground">
-          <Link href="/communities/create">
-            <PlusCircle className="mr-2 h-4 w-4" />
-            Create Community
-          </Link>
-        </Button>
+        <div className="flex items-center gap-4">
+            <Select value={filter} onValueChange={setFilter}>
+                <SelectTrigger className="w-[180px]">
+                    <SelectValue placeholder="Filter communities" />
+                </SelectTrigger>
+                <SelectContent>
+                    <SelectItem value="all">All Communities</SelectItem>
+                    <SelectItem value="public">Public Only</SelectItem>
+                </SelectContent>
+            </Select>
+            <Button asChild className="bg-accent hover:bg-accent/90 text-accent-foreground">
+                <Link href="/communities/create">
+                    <PlusCircle className="mr-2 h-4 w-4" />
+                    Create Community
+                </Link>
+            </Button>
+        </div>
       </div>
       
       {loading ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {[...Array(6)].map((_, i) => <CommunityCardSkeleton key={i} />)}
         </div>
-      ) : (
+      ) : filteredCommunities.length > 0 ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {communities.map((community) => (
+          {filteredCommunities.map((community) => (
             <CommunityCard key={community.id} community={community} />
           ))}
+        </div>
+      ) : (
+         <div className="text-center p-8 border-2 border-dashed rounded-lg bg-secondary col-span-full">
+            <p className="text-muted-foreground">No communities found that match your filter.</p>
         </div>
       )}
     </div>

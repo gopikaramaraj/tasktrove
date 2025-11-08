@@ -15,7 +15,7 @@ service cloud.firestore {
     
     // Helper function to check if the user is the owner of the community
     function isCommunityOwner(communityId) {
-        return isAuthenticated() && request.auth.uid == get(/databases/$(database)/documents/communities/$(communityId)).data.ownerId;
+      return isAuthenticated() && request.auth.uid == get(/databases/$(database)/documents/communities/$(communityId)).data.ownerId;
     }
 
     // Users Collection
@@ -31,10 +31,11 @@ service cloud.firestore {
     // Communities Collection
     // - Authenticated users can read all public communities
     // - Authenticated users can create communities
-    // - Only the owner can update or delete a community
+    // - Only the owner can update or delete a community, except for memberCount
     match /communities/{communityId} {
       allow read, create: if isAuthenticated();
-      allow update, delete: if isCommunityOwner(communityId);
+      allow update: if isCommunityOwner(communityId) || (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['memberCount']));
+      allow delete: if isCommunityOwner(communityId);
 
       // Community Members Subcollection
       // - Authenticated users can read the members list
@@ -64,21 +65,16 @@ service cloud.firestore {
     // - Users can only update their own user_challenge docs
     // - Challenge participants can read other participants' progress for leaderboards
     match /user_challenges/{userChallengeId} {
-      allow create: if isAuthenticated() && isOwner(request.resource.data.userId);
-      allow read, update: if isAuthenticated() && isOwner(resource.data.userId);
-      // More open read for leaderboards - This is a simplification. 
-      // In a production app with sensitive data, you'd likely use a Cloud Function 
-      // to aggregate leaderboard data securely.
-       allow list: if isAuthenticated();
+        allow create: if isAuthenticated() && isOwner(request.resource.data.userId);
+        allow read, update: if isAuthenticated() && isOwner(resource.data.userId);
+        allow list: if isAuthenticated();
     }
 
     // User Habits Collection
     // - Users can only manage their own habits
     match /user_habits/{userHabitId} {
-      allow read, write: if isAuthenticated() && isOwner(resource.data.userId);
+      allow read, write: if isAuthenticated() && resource.data.userId == request.auth.uid;
       allow list: if isAuthenticated() && request.query.where[0][2] == request.auth.uid;
     }
   }
 }
-
-    
