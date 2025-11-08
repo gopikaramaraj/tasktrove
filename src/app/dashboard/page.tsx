@@ -32,25 +32,26 @@ export default function DashboardPage() {
 
       try {
         // Fetch completed challenges
-        const completedChallengesQuery = query(
+        const userChallengesQuery = query(
           collection(db, 'user_challenges'),
-          where('userId', '==', userData.id),
-          where('progress', '==', 100)
+          where('userId', '==', userData.id)
         );
-        const completedChallengesSnapshot = await getDocs(completedChallengesQuery);
-        setChallengesDone(completedChallengesSnapshot.size);
+        const userChallengesSnapshot = await getDocs(userChallengesQuery);
+        
+        const allUserChallenges = userChallengesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as UserChallenge));
 
-        // Fetch recent user challenges
-        const recentChallengesQuery = query(
-          collection(db, 'user_challenges'),
-          where('userId', '==', userData.id),
-          orderBy('joinedAt', 'desc'),
-          limit(3)
+        const completedChallenges = allUserChallenges.filter(c => c.progress === 100);
+        setChallengesDone(completedChallenges.length);
+
+        // Sort challenges by joinedAt date to get the recent ones
+        const sortedChallenges = [...allUserChallenges].sort((a, b) => {
+            if (a.joinedAt && b.joinedAt) {
+              return b.joinedAt.seconds - a.joinedAt.seconds;
+            }
+            return 0;
+          }
         );
-        const recentChallengesSnapshot = await getDocs(recentChallengesQuery);
-        setRecentChallenges(
-          recentChallengesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as UserChallenge))
-        );
+        setRecentChallenges(sortedChallenges.slice(0, 3));
 
 
         // Fetch habits to calculate streak
