@@ -38,7 +38,7 @@ export default function ChallengeDetailPage({
 }: {
   params: { id: string; challengeId: string };
 }) {
-  const { id: communityId, challengeId } = params;
+  const { id: communityId, challengeId } = use(params);
   const { user, userData, loading: authLoading } = useAuth();
   const router = useRouter();
   const { toast } = useToast();
