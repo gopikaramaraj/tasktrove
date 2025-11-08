@@ -23,66 +23,71 @@ export default function DashboardPage() {
 
   useEffect(() => {
     async function fetchDashboardData() {
+      if (authLoading) return;
       if (!userData) {
-        if (!authLoading) setLoading(false);
+        setLoading(false);
         return;
       }
       setLoading(true);
 
-      // Fetch completed challenges
-      const completedChallengesQuery = query(
-        collection(db, 'user_challenges'),
-        where('userId', '==', userData.id),
-        where('progress', '==', 100)
-      );
-      const completedChallengesSnapshot = await getDocs(completedChallengesQuery);
-      setChallengesDone(completedChallengesSnapshot.size);
+      try {
+        // Fetch completed challenges
+        const completedChallengesQuery = query(
+          collection(db, 'user_challenges'),
+          where('userId', '==', userData.id),
+          where('progress', '==', 100)
+        );
+        const completedChallengesSnapshot = await getDocs(completedChallengesQuery);
+        setChallengesDone(completedChallengesSnapshot.size);
 
-       // Fetch recent user challenges
-      const recentChallengesQuery = query(
-        collection(db, 'user_challenges'),
-        where('userId', '==', userData.id),
-        orderBy('joinedAt', 'desc'),
-        limit(3)
-      );
-      const recentChallengesSnapshot = await getDocs(recentChallengesQuery);
-      setRecentChallenges(
-        recentChallengesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as UserChallenge))
-      );
+        // Fetch recent user challenges
+        const recentChallengesQuery = query(
+          collection(db, 'user_challenges'),
+          where('userId', '==', userData.id),
+          orderBy('joinedAt', 'desc'),
+          limit(3)
+        );
+        const recentChallengesSnapshot = await getDocs(recentChallengesQuery);
+        setRecentChallenges(
+          recentChallengesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as UserChallenge))
+        );
 
 
-      // Fetch habits to calculate streak
-      const habitsQuery = query(
-          collection(db, 'user_habits'),
-          where('userId', '==', userData.id)
-      );
-      const habitsSnapshot = await getDocs(habitsQuery);
-      const habits = habitsSnapshot.docs.map(doc => doc.data() as UserHabit);
-      
-      let streak = 0;
-      if (habits.length > 0) {
-        const sortedHabits = habits.sort((a,b) => b.lastCheckIn.seconds - a.lastCheckIn.seconds);
-        const lastCheckinDate = new Date(sortedHabits[0].lastCheckIn.seconds * 1000);
-        const today = new Date();
-        const diffDays = differenceInCalendarDays(today, lastCheckinDate);
+        // Fetch habits to calculate streak
+        const habitsQuery = query(
+            collection(db, 'user_habits'),
+            where('userId', '==', userData.id)
+        );
+        const habitsSnapshot = await getDocs(habitsQuery);
+        const habits = habitsSnapshot.docs.map(doc => doc.data() as UserHabit);
+        
+        let streak = 0;
+        if (habits.length > 0) {
+          const sortedHabits = habits.sort((a,b) => b.lastCheckIn.seconds - a.lastCheckIn.seconds);
+          const lastCheckinDate = new Date(sortedHabits[0].lastCheckIn.seconds * 1000);
+          const today = new Date();
+          const diffDays = differenceInCalendarDays(today, lastCheckinDate);
 
-        if (diffDays <= 1) {
-            streak = 1; // Start with 1 for today/yesterday's check-in
-            let currentDate = lastCheckinDate;
-            for (let i = 1; i < sortedHabits.length; i++) {
-                const prevDate = new Date(sortedHabits[i].lastCheckIn.seconds * 1000);
-                if (differenceInCalendarDays(currentDate, prevDate) === 1) {
-                    streak++;
-                    currentDate = prevDate;
-                } else if (differenceInCalendarDays(currentDate, prevDate) > 1) {
-                    break; 
-                }
-            }
+          if (diffDays <= 1) {
+              streak = 1; // Start with 1 for today/yesterday's check-in
+              let currentDate = lastCheckinDate;
+              for (let i = 1; i < sortedHabits.length; i++) {
+                  const prevDate = new Date(sortedHabits[i].lastCheckIn.seconds * 1000);
+                  if (differenceInCalendarDays(currentDate, prevDate) === 1) {
+                      streak++;
+                      currentDate = prevDate;
+                  } else if (differenceInCalendarDays(currentDate, prevDate) > 1) {
+                      break; 
+                  }
+              }
+          }
         }
+        setCurrentStreak(streak);
+      } catch (error) {
+        console.error("Error fetching dashboard data:", error);
+      } finally {
+        setLoading(false);
       }
-      setCurrentStreak(streak);
-
-      setLoading(false);
     }
 
     fetchDashboardData();
@@ -96,8 +101,17 @@ export default function DashboardPage() {
     { icon: <Award className="text-green-500" />, name: 'Habit Master' },
   ];
 
-  if (authLoading || loading || !userData) {
+  if (loading || authLoading) {
     return <DashboardSkeleton />;
+  }
+  
+  if (!userData) {
+      return (
+        <div className="text-center">
+            <h2 className="text-2xl font-bold">Welcome!</h2>
+            <p className="text-muted-foreground">It looks like your user data is not yet available. Please try again shortly.</p>
+        </div>
+      )
   }
 
   const progressToNextLevel = (userData.xp / (userData.level * 1000)) * 100;
