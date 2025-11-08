@@ -32,6 +32,8 @@ import { ArrowLeft, UserPlus, Zap, Calendar, Award, CheckCircle } from 'lucide-r
 import Link from 'next/link';
 import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
+import { errorEmitter } from '@/firebase/error-emitter';
+import { FirestorePermissionError } from '@/firebase/errors';
 
 export default function ChallengeDetailPage({
   params,
@@ -127,54 +129,55 @@ export default function ChallengeDetailPage({
     if (!user || !challenge) return;
     setIsJoining(true);
 
-    try {
-      const batch = writeBatch(db);
+    const batch = writeBatch(db);
 
-      // Create a new user_challenge document
-      const userChallengeRef = doc(collection(db, 'user_challenges'));
-      batch.set(userChallengeRef, {
-        userId: user.uid,
-        challengeId: challenge.id,
-        communityId: challenge.communityId,
-        progress: 0,
-        xpGained: 0,
-        joinedAt: serverTimestamp(),
-        completedAt: null,
+    // Create a new user_challenge document
+    const userChallengeRef = doc(collection(db, 'user_challenges'));
+    const userChallengeData = {
+      userId: user.uid,
+      challengeId: challenge.id,
+      communityId: challenge.communityId,
+      progress: 0,
+      xpGained: 0,
+      joinedAt: serverTimestamp(),
+      completedAt: null,
+    };
+    batch.set(userChallengeRef, userChallengeData);
+
+    // Increment participant count on the challenge
+    const challengeRef = doc(db, 'communities', challenge.communityId, 'challenges', challenge.id);
+    batch.update(challengeRef, { participantCount: increment(1) });
+    
+    batch.commit()
+      .then(() => {
+        setUserChallenge({
+          id: userChallengeRef.id,
+          userId: user.uid,
+          challengeId: challenge.id,
+          communityId: challenge.communityId,
+          progress: 0,
+          xpGained: 0,
+          joinedAt: { seconds: Date.now() / 1000, nanoseconds: 0 },
+          completedAt: null,
+        });
+
+        setChallenge(prev => prev ? {...prev, participantCount: prev.participantCount + 1} : null);
+
+        toast({
+          title: 'Challenge Joined!',
+          description: `You are now participating in "${challenge.title}".`,
+        });
+        setIsJoining(false);
+      })
+      .catch(async (serverError) => {
+        const permissionError = new FirestorePermissionError({
+            path: challengeRef.path,
+            operation: 'update',
+            requestResourceData: { participantCount: 'increment(1)' }
+        });
+        errorEmitter.emit('permission-error', permissionError);
+        setIsJoining(false);
       });
-
-      // Increment participant count on the challenge
-      const challengeRef = doc(db, 'communities', challenge.communityId, 'challenges', challenge.id);
-      batch.update(challengeRef, { participantCount: increment(1) });
-      
-      await batch.commit();
-
-      setUserChallenge({
-        id: userChallengeRef.id,
-        userId: user.uid,
-        challengeId: challenge.id,
-        communityId: challenge.communityId,
-        progress: 0,
-        xpGained: 0,
-        joinedAt: { seconds: Date.now() / 1000, nanoseconds: 0 },
-        completedAt: null,
-      });
-
-       setChallenge(prev => prev ? {...prev, participantCount: prev.participantCount + 1} : null);
-
-      toast({
-        title: 'Challenge Joined!',
-        description: `You are now participating in "${challenge.title}".`,
-      });
-    } catch (error) {
-      console.error('Error joining challenge: ', error);
-      toast({
-        variant: 'destructive',
-        title: 'Error',
-        description: 'Could not join the challenge. Please try again.',
-      });
-    } finally {
-      setIsJoining(false);
-    }
   };
 
   const handleCompleteChallenge = async () => {

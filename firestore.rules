@@ -18,6 +18,10 @@ service cloud.firestore {
       return isAuthenticated() && request.auth.uid == get(/databases/$(database)/documents/communities/$(communityId)).data.ownerId;
     }
 
+    function isCommunityMember(communityId) {
+        return isAuthenticated() && exists(/databases/$(database)/documents/communities/$(communityId)/members/$(request.auth.uid));
+    }
+
     // Users Collection
     // - Anyone can create their own user document (on signup)
     // - Authenticated users can read public user profiles
@@ -55,7 +59,7 @@ service cloud.firestore {
       match /challenges/{challengeId} {
         allow read: if isAuthenticated();
         allow create: if isCommunityOwner(communityId);
-        allow update: if isCommunityOwner(communityId) && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['participantCount']);
+        allow update: if (isCommunityOwner(communityId) || isCommunityMember(communityId)) && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['participantCount']);
         allow delete: if isCommunityOwner(communityId);
       }
     }
