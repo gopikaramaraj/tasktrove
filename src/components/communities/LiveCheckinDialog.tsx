@@ -96,28 +96,16 @@ export function LiveCheckinDialog({ triggerButton, challengeTitle = "Live Check-
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
       <DialogTrigger asChild>{triggerButton}</DialogTrigger>
       <DialogContent className="max-w-4xl p-0">
-        <div className="grid grid-cols-1 md:grid-cols-2 min-h-[70vh]">
-            <div className="bg-slate-900 flex flex-col items-center justify-between p-4 rounded-l-lg">
-                <div className="grid grid-cols-2 gap-4 w-full h-full">
-                    {/* Main Speaker */}
-                    <div className="col-span-2 bg-black rounded-lg relative overflow-hidden">
-                        <Image src="https://placehold.co/600x400.png" layout="fill" objectFit='cover' alt="Main speaker" data-ai-hint="person talking"/>
-                        <span className="absolute bottom-2 left-2 bg-black/50 text-white text-sm px-2 py-1 rounded">Alex</span>
-                    </div>
-                    {/* Other participants */}
-                    <div className="bg-black rounded-lg relative overflow-hidden">
-                        <Image src="https://placehold.co/300x200.png" layout="fill" objectFit='cover' alt="Participant 2" data-ai-hint="person portrait"/>
-                        <span className="absolute bottom-2 left-2 bg-black/50 text-white text-sm px-2 py-1 rounded">Beth</span>
-                    </div>
-                     <div className="bg-black rounded-lg flex items-center justify-center relative">
-                        <video ref={videoRef} className="w-full aspect-video rounded-md" autoPlay muted playsInline />
-                         {!videoOn && (
-                            <div className="absolute inset-0 flex items-center justify-center bg-black">
-                                <UserSquare className="w-16 h-16 text-slate-600" />
-                            </div>
-                        )}
-                        <span className="absolute bottom-2 left-2 bg-black/50 text-white text-sm px-2 py-1 rounded">You</span>
-                    </div>
+        <div className="grid grid-cols-1 md:grid-cols-3 min-h-[70vh]">
+            <div className="bg-slate-900 flex flex-col items-center justify-center p-4 rounded-l-lg md:col-span-2">
+                <div className="w-full h-full bg-black rounded-lg flex items-center justify-center relative">
+                    <video ref={videoRef} className="w-full h-full object-cover rounded-md" autoPlay muted playsInline />
+                        {!videoOn && (
+                        <div className="absolute inset-0 flex items-center justify-center bg-black">
+                            <UserSquare className="w-24 h-24 text-slate-600" />
+                        </div>
+                    )}
+                    <span className="absolute bottom-2 left-2 bg-black/50 text-white text-sm px-2 py-1 rounded">You</span>
                 </div>
             </div>
             <div className="flex flex-col p-6">
@@ -127,7 +115,7 @@ export function LiveCheckinDialog({ triggerButton, challengeTitle = "Live Check-
                         Live check-in in progress.
                     </DialogDescription>
                 </DialogHeader>
-                <div className="flex-grow my-6 bg-secondary p-4 rounded-lg">
+                <div className="flex-grow my-6 bg-secondary p-4 rounded-lg space-y-4">
                    { !hasCameraPermission && (
                         <Alert variant="destructive">
                             <AlertTitle>Camera Access Required</AlertTitle>
@@ -136,6 +124,9 @@ export function LiveCheckinDialog({ triggerButton, challengeTitle = "Live Check-
                             </AlertDescription>
                         </Alert>
                    )}
+                   <p className="text-sm text-muted-foreground text-center">
+                    Waiting for other participants to join...
+                   </p>
                 </div>
                  <DialogFooter className="flex-row justify-center items-center gap-4 bg-secondary p-4 rounded-lg">
                     <Button variant={micOn ? "outline" : "destructive"} size="icon" className="rounded-full h-12 w-12" onClick={toggleMic}>
