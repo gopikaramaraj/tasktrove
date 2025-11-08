@@ -2,13 +2,121 @@
 import { Button } from '@/components/ui/button';
 import { CommunityCard } from '@/components/communities/CommunityCard';
 import type { Community } from '@/lib/types';
-import { PlusCircle } from 'lucide-react';
+import { PlusCircle, UserPlus } from 'lucide-react';
 import { useEffect, useState } from 'react';
-import { collection, getDocs, query, where } from 'firebase/firestore';
-import { db } from '@/lib/firebase';
+import { collection, getDocs, query, where, doc, getDoc, writeBatch, increment } from 'firebase/firestore';
+import { db, auth } from '@/lib/firebase';
 import { Skeleton } from '@/components/ui/skeleton';
 import Link from 'next/link';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { useToast } from '@/hooks/use-toast';
+import { useAuth } from '@/hooks/use-auth';
+
+function JoinCommunityDialog() {
+    const [isOpen, setIsOpen] = useState(false);
+    const [communityId, setCommunityId] = useState('');
+    const [isJoining, setIsJoining] = useState(false);
+    const { toast } = useToast();
+    const { user } = useAuth();
+    const router = useRouter();
+
+    const handleJoin = async () => {
+        if (!user) {
+            toast({ variant: 'destructive', title: 'Not Authenticated', description: 'You must be logged in to join a community.' });
+            return;
+        }
+        if (!communityId.trim()) {
+            toast({ variant: 'destructive', title: 'Invalid ID', description: 'Please enter a community ID.' });
+            return;
+        }
+
+        setIsJoining(true);
+        try {
+            const communityRef = doc(db, 'communities', communityId.trim());
+            const memberRef = doc(db, 'communities', communityId.trim(), 'members', user.uid);
+            
+            const communityDoc = await getDoc(communityRef);
+            if (!communityDoc.exists()) {
+                toast({ variant: 'destructive', title: 'Not Found', description: 'No community found with that ID.' });
+                setIsJoining(false);
+                return;
+            }
+            
+            const memberDoc = await getDoc(memberRef);
+            if (memberDoc.exists()) {
+                 toast({ variant: 'default', title: 'Already a member', description: 'You are already a member of this community.' });
+                 router.push(`/communities/${communityId.trim()}`);
+                 setIsOpen(false);
+                 return;
+            }
+
+            const batch = writeBatch(db);
+            batch.set(memberRef, { joinedAt: new Date(), role: 'member' });
+            batch.update(communityRef, { memberCount: increment(1) });
+            await batch.commit();
+
+            toast({ title: 'Success!', description: `You have joined the community.` });
+            router.push(`/communities/${communityId.trim()}`);
+            setIsOpen(false);
+
+        } catch (error) {
+            console.error("Error joining community by ID:", error);
+            toast({ variant: 'destructive', title: 'Error', description: 'Could not join the community. Please check the ID and try again.' });
+        } finally {
+            setIsJoining(false);
+        }
+    }
+
+    return (
+        <Dialog open={isOpen} onOpenChange={setIsOpen}>
+            <DialogTrigger asChild>
+                <Button variant="outline">
+                    <UserPlus className="mr-2 h-4 w-4" />
+                    Join Community
+                </Button>
+            </DialogTrigger>
+            <DialogContent className="sm:max-w-[425px]">
+                <DialogHeader>
+                <DialogTitle>Join a Community</DialogTitle>
+                <DialogDescription>
+                    Enter the ID of the community you want to join. This is useful for private communities.
+                </DialogDescription>
+                </DialogHeader>
+                <div className="grid gap-4 py-4">
+                <div className="grid grid-cols-4 items-center gap-4">
+                    <Label htmlFor="community-id" className="text-right">
+                    Community ID
+                    </Label>
+                    <Input
+                    id="community-id"
+                    value={communityId}
+                    onChange={(e) => setCommunityId(e.target.value)}
+                    className="col-span-3"
+                    placeholder="Enter community ID"
+                    />
+                </div>
+                </div>
+                <DialogFooter>
+                <Button onClick={handleJoin} disabled={isJoining}>
+                    {isJoining ? 'Joining...' : 'Join'}
+                </Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
+    )
+}
+
 
 export default function CommunitiesPage() {
   const [allCommunities, setAllCommunities] = useState<Community[]>([]);
@@ -60,6 +168,7 @@ export default function CommunitiesPage() {
                     <SelectItem value="public">Public Only</SelectItem>
                 </SelectContent>
             </Select>
+            <JoinCommunityDialog />
             <Button asChild className="bg-accent hover:bg-accent/90 text-accent-foreground">
                 <Link href="/communities/create">
                     <PlusCircle className="mr-2 h-4 w-4" />
@@ -106,3 +215,4 @@ function CommunityCardSkeleton() {
 }
 // To make skeleton work, we need to import these components
 import { Card, CardContent, CardFooter } from '@/components/ui/card';
+import { useRouter } from 'next/navigation';
