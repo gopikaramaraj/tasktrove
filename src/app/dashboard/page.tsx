@@ -13,6 +13,7 @@ import { db } from '@/lib/firebase';
 import { UserChallenge, UserHabit } from '@/lib/types';
 import { differenceInCalendarDays } from 'date-fns';
 import { RecentChallenges } from '@/components/dashboard/RecentChallenges';
+import { ChatBot } from '@/components/dashboard/ChatBot';
 
 export default function DashboardPage() {
   const { userData, loading: authLoading } = useAuth();
@@ -23,7 +24,6 @@ export default function DashboardPage() {
 
   useEffect(() => {
     async function fetchDashboardData() {
-      if (authLoading) return;
       if (!userData) {
         setLoading(false);
         return;
@@ -91,7 +91,9 @@ export default function DashboardPage() {
       }
     }
 
-    fetchDashboardData();
+    if (!authLoading) {
+      fetchDashboardData();
+    }
   }, [userData, authLoading]);
 
 
@@ -167,6 +169,7 @@ export default function DashboardPage() {
       </div>
 
       <PersonalizedSuggestions />
+      <ChatBot />
     </div>
   );
 }
