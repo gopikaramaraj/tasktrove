@@ -67,8 +67,9 @@ service cloud.firestore {
       // Community Messages Subcollection
       // - Community members can read and create messages
       match /messages/{messageId} {
-        allow create, get: if isCommunityMember(communityId);
+        allow get: if isCommunityMember(communityId);
         allow list: if isCommunityMember(communityId);
+        allow create: if isCommunityMember(communityId);
       }
     }
     
