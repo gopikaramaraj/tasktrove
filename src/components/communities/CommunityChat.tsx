@@ -25,11 +25,11 @@ export function CommunityChat({ communityId }: CommunityChatProps) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState('');
   const [loading, setLoading] = useState(true);
-  const { userData, user } = useAuth();
+  const { userData, user, loading: authLoading } = useAuth();
   const scrollAreaRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (!user) {
+    if (authLoading || !user) {
       setLoading(false);
       return;
     }
@@ -53,7 +53,7 @@ export function CommunityChat({ communityId }: CommunityChatProps) {
     });
 
     return () => unsubscribe();
-  }, [communityId, user]);
+  }, [communityId, user, authLoading]);
 
   useEffect(() => {
     if (scrollAreaRef.current) {
@@ -89,6 +89,24 @@ export function CommunityChat({ communityId }: CommunityChatProps) {
             errorEmitter.emit('permission-error', permissionError);
         });
   };
+
+  if (authLoading) {
+    return (
+        <Card>
+            <CardHeader>
+                <CardTitle className="font-headline">Community Chat</CardTitle>
+                <CardDescription>Discuss topics and connect with other members in real-time.</CardDescription>
+            </CardHeader>
+            <CardContent>
+                <div className="space-y-4">
+                    <MessageSkeleton />
+                    <MessageSkeleton reversed />
+                    <MessageSkeleton />
+                </div>
+            </CardContent>
+        </Card>
+    )
+  }
 
   return (
     <Card>

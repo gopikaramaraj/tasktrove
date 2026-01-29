@@ -35,7 +35,7 @@ import { CommunityChat } from '@/components/communities/CommunityChat';
 
 export default function CommunityDetailPage({ params }: { params: { id: string } }) {
   const { id } = use(params);
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const { toast } = useToast();
   const [community, setCommunity] = useState<Community | null>(null);
   const [challenges, setChallenges] = useState<Challenge[]>([]);
@@ -47,7 +47,7 @@ export default function CommunityDetailPage({ params }: { params: { id: string }
 
   useEffect(() => {
     const fetchCommunityData = async () => {
-      if (!id) return;
+      if (!id || authLoading) return;
         setLoading(true);
         try {
             // Fetch community details
@@ -91,7 +91,7 @@ export default function CommunityDetailPage({ params }: { params: { id: string }
     };
 
     fetchCommunityData();
-  }, [id, user, toast]);
+  }, [id, user, toast, authLoading]);
 
   const handleJoinLeaveCommunity = async () => {
     if (!user || !community) return;
@@ -172,7 +172,7 @@ export default function CommunityDetailPage({ params }: { params: { id: string }
   }
 
 
-  if (loading) {
+  if (loading || authLoading) {
     return <CommunityDetailSkeleton />
   }
   

@@ -65,10 +65,14 @@ service cloud.firestore {
       }
 
       // Community Messages Subcollection
-      // - Community members can read and create messages
       match /messages/{messageId} {
+        // Only members can read individual messages
         allow get: if isCommunityMember(communityId);
-        allow list: if isAuthenticated();
+        
+        // Only members should be able to list (read) the chat history
+        allow list: if isCommunityMember(communityId);
+        
+        // Only members can create (send) messages
         allow create: if isCommunityMember(communityId);
       }
     }
