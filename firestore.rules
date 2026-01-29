@@ -68,7 +68,7 @@ service cloud.firestore {
       // - Community members can read and create messages
       match /messages/{messageId} {
         allow get: if isCommunityMember(communityId);
-        allow list: if isCommunityMember(communityId);
+        allow list: if isAuthenticated();
         allow create: if isCommunityMember(communityId);
       }
     }
