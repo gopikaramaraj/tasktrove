@@ -20,7 +20,7 @@ service cloud.firestore {
     }
 
     function isCommunityMember(communityId) {
-        return isAuthenticated() && exists(/databases/$(database)/documents/communities/$(communityId)/members/$(request.auth.uid));
+        return isAuthenticated() && get(/databases/$(database)/documents/communities/$(communityId)/members/$(request.auth.uid)) != null;
     }
 
     // Users Collection
