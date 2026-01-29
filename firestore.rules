@@ -1,3 +1,4 @@
+
 rules_version = '2';
 
 service cloud.firestore {
@@ -66,7 +67,8 @@ service cloud.firestore {
       // Community Messages Subcollection
       // - Community members can read and create messages
       match /messages/{messageId} {
-        allow read, create: if isCommunityMember(communityId);
+        allow create, get: if isCommunityMember(communityId);
+        allow list: if isCommunityMember(communityId);
       }
     }
     
