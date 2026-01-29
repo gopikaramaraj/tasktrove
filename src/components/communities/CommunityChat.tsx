@@ -14,6 +14,8 @@ import { collection, addDoc, serverTimestamp, query, orderBy, onSnapshot } from 
 import { db } from '@/lib/firebase';
 import type { Message } from '@/lib/types';
 import { formatRelative } from 'date-fns';
+import { errorEmitter } from '@/firebase/error-emitter';
+import { FirestorePermissionError } from '@/firebase/errors';
 
 interface CommunityChatProps {
   communityId: string;
@@ -36,8 +38,12 @@ export function CommunityChat({ communityId }: CommunityChatProps) {
       const msgs = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Message));
       setMessages(msgs);
       setLoading(false);
-    }, (error) => {
-      console.error("Error fetching messages:", error);
+    }, async (error) => {
+      const permissionError = new FirestorePermissionError({
+          path: `communities/${communityId}/messages`,
+          operation: 'list',
+      });
+      errorEmitter.emit('permission-error', permissionError);
       setLoading(false);
     });
 
@@ -57,6 +63,7 @@ export function CommunityChat({ communityId }: CommunityChatProps) {
     e.preventDefault();
     if (!newMessage.trim() || !user || !userData) return;
 
+    const messagesCollectionRef = collection(db, 'communities', communityId, 'messages');
     const messageData = {
       text: newMessage,
       createdAt: serverTimestamp(),
@@ -66,7 +73,16 @@ export function CommunityChat({ communityId }: CommunityChatProps) {
     };
 
     setNewMessage('');
-    await addDoc(collection(db, 'communities', communityId, 'messages'), messageData);
+
+    addDoc(messagesCollectionRef, messageData)
+        .catch(async (serverError) => {
+            const permissionError = new FirestorePermissionError({
+                path: messagesCollectionRef.path,
+                operation: 'create',
+                requestResourceData: messageData
+            });
+            errorEmitter.emit('permission-error', permissionError);
+        });
   };
 
   return (
