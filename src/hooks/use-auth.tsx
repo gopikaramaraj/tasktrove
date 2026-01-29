@@ -40,15 +40,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
       } else {
         setUserData(null);
-        if (!publicRoutes.includes(pathname)) {
-            router.push('/login');
-        }
       }
       setLoading(false);
     });
 
     return () => unsubscribe();
-  }, [router, pathname]);
+  }, []);
+
+  useEffect(() => {
+    if (loading) return; // Wait until loading is finished
+
+    const pathIsProtected = !publicRoutes.includes(pathname);
+
+    if (!user && pathIsProtected) {
+      router.push('/login');
+    }
+  }, [loading, user, pathname, router]);
 
   const value = {
     user,
