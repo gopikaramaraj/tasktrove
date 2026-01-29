@@ -31,6 +31,7 @@ import {
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import { format } from 'date-fns';
+import { CommunityChat } from '@/components/communities/CommunityChat';
 
 export default function CommunityDetailPage({ params }: { params: { id: string } }) {
   const { id } = use(params);
@@ -221,8 +222,9 @@ export default function CommunityDetailPage({ params }: { params: { id: string }
           </Card>
       ) : (
         <Tabs defaultValue="challenges" className="w-full">
-            <TabsList className={cn("grid w-full", isOwner ? "grid-cols-5" : "grid-cols-4")}>
+            <TabsList className={cn("grid w-full", isOwner ? "grid-cols-6" : "grid-cols-5")}>
             <TabsTrigger value="challenges">Challenges</TabsTrigger>
+            <TabsTrigger value="chat">Chat</TabsTrigger>
             <TabsTrigger value="leaderboard">Leaderboard</TabsTrigger>
             <TabsTrigger value="members">Members</TabsTrigger>
             <TabsTrigger value="checkins">Live Check-ins</TabsTrigger>
@@ -251,6 +253,9 @@ export default function CommunityDetailPage({ params }: { params: { id: string }
                         <p className="text-muted-foreground">No active challenges in this community yet.</p>
                     </div>
                 )}
+            </TabsContent>
+            <TabsContent value="chat" className="mt-6">
+              <CommunityChat communityId={id} />
             </TabsContent>
             <TabsContent value="leaderboard" className="mt-6">
                 <Leaderboard users={members} />

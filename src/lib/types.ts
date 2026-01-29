@@ -69,3 +69,15 @@ export interface UserHabit {
         nanoseconds: number;
     };
 }
+
+export interface Message {
+  id: string;
+  text: string;
+  createdAt: {
+    seconds: number;
+    nanoseconds: number;
+  };
+  userId: string;
+  userName: string;
+  userAvatar: string;
+}
