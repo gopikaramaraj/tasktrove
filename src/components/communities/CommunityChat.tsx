@@ -29,6 +29,11 @@ export function CommunityChat({ communityId }: CommunityChatProps) {
   const scrollAreaRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
+    if (!user) {
+      setLoading(false);
+      return;
+    }
+
     const messagesQuery = query(
       collection(db, 'communities', communityId, 'messages'),
       orderBy('createdAt', 'asc')
@@ -48,7 +53,7 @@ export function CommunityChat({ communityId }: CommunityChatProps) {
     });
 
     return () => unsubscribe();
-  }, [communityId]);
+  }, [communityId, user]);
 
   useEffect(() => {
     if (scrollAreaRef.current) {
