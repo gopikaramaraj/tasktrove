@@ -39,6 +39,8 @@ export function CommunityChat({ communityId }: CommunityChatProps) {
       return; 
     }
 
+    setChatLoading(true);
+
     const messagesQuery = query(
       collection(db, 'communities', communityId, 'messages'),
       orderBy('createdAt', 'asc')
@@ -49,12 +51,14 @@ export function CommunityChat({ communityId }: CommunityChatProps) {
       setMessages(msgs);
       setChatLoading(false);
     }, async (error) => {
+      console.error('Firestore error in CommunityChat:', error);
       const permissionError = new FirestorePermissionError({
           path: `communities/${communityId}/messages`,
           operation: 'list',
       });
       errorEmitter.emit('permission-error', permissionError);
       setChatLoading(false);
+      setMessages([]); // Clear messages on error
     });
 
     return () => unsubscribe();

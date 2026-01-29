@@ -66,9 +66,8 @@ service cloud.firestore {
 
       // Community Messages Subcollection
       match /messages/{messageId} {
-        allow get: if isCommunityMember(communityId);
-        allow list: if isAuthenticated();
-        allow create: if isCommunityMember(communityId)
+        allow get, list: if isCommunityMember(communityId) || isCommunityOwner(communityId);
+        allow create: if (isCommunityMember(communityId) || isCommunityOwner(communityId))
           && request.resource.data.userId == request.auth.uid
           && request.resource.data.text is string
           && request.resource.data.createdAt is timestamp;
