@@ -20,7 +20,7 @@ service cloud.firestore {
     }
 
     function isCommunityMember(communityId) {
-        return isAuthenticated() && get(/databases/$(database)/documents/communities/$(communityId)/members/$(request.auth.uid)) != null;
+        return isAuthenticated() && exists(/databases/$(database)/documents/communities/$(communityId)/members/$(request.auth.uid));
     }
 
     // Users Collection
@@ -66,14 +66,11 @@ service cloud.firestore {
 
       // Community Messages Subcollection
       match /messages/{messageId} {
-        // Only members can read individual messages
-        allow get: if isCommunityMember(communityId);
-        
-        // Only authenticated users can list messages. The UI prevents non-members from attempting this.
-        allow list: if isAuthenticated();
-        
-        // Only members can create (send) messages
-        allow create: if isCommunityMember(communityId);
+        allow read: if isCommunityMember(communityId);
+        allow create: if isCommunityMember(communityId)
+          && request.resource.data.userId == request.auth.uid
+          && request.resource.data.text is string
+          && request.resource.data.createdAt is timestamp;
       }
     }
     
