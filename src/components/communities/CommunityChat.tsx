@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
@@ -24,14 +25,18 @@ interface CommunityChatProps {
 export function CommunityChat({ communityId }: CommunityChatProps) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState('');
-  const [loading, setLoading] = useState(true);
+  const [chatLoading, setChatLoading] = useState(true);
   const { userData, user, loading: authLoading } = useAuth();
   const scrollAreaRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
+    // CRITICAL CHECK: Do not run Firestore logic if auth is loading or there's no user.
     if (authLoading || !user) {
-      setLoading(false);
-      return;
+      if (!authLoading && !user) {
+        // Auth is done, but no user. Stop loading.
+        setChatLoading(false);
+      }
+      return; 
     }
 
     const messagesQuery = query(
@@ -42,18 +47,18 @@ export function CommunityChat({ communityId }: CommunityChatProps) {
     const unsubscribe = onSnapshot(messagesQuery, (querySnapshot) => {
       const msgs = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Message));
       setMessages(msgs);
-      setLoading(false);
+      setChatLoading(false);
     }, async (error) => {
       const permissionError = new FirestorePermissionError({
           path: `communities/${communityId}/messages`,
           operation: 'list',
       });
       errorEmitter.emit('permission-error', permissionError);
-      setLoading(false);
+      setChatLoading(false);
     });
 
     return () => unsubscribe();
-  }, [communityId, user, authLoading]);
+  }, [communityId, user, authLoading]); // Re-trigger when user/auth state changes.
 
   useEffect(() => {
     if (scrollAreaRef.current) {
@@ -90,23 +95,7 @@ export function CommunityChat({ communityId }: CommunityChatProps) {
         });
   };
 
-  if (authLoading) {
-    return (
-        <Card>
-            <CardHeader>
-                <CardTitle className="font-headline">Community Chat</CardTitle>
-                <CardDescription>Discuss topics and connect with other members in real-time.</CardDescription>
-            </CardHeader>
-            <CardContent>
-                <div className="space-y-4">
-                    <MessageSkeleton />
-                    <MessageSkeleton reversed />
-                    <MessageSkeleton />
-                </div>
-            </CardContent>
-        </Card>
-    )
-  }
+  const isLoading = authLoading || chatLoading;
 
   return (
     <Card>
@@ -117,14 +106,14 @@ export function CommunityChat({ communityId }: CommunityChatProps) {
       <CardContent>
         <ScrollArea className="h-[400px] w-full pr-4" ref={scrollAreaRef}>
           <div className="space-y-4">
-            {loading && (
+            {isLoading && (
               <>
                 <MessageSkeleton />
                 <MessageSkeleton reversed />
                 <MessageSkeleton />
               </>
             )}
-            {!loading && messages.map((message) => (
+            {!isLoading && messages.map((message) => (
               <div
                 key={message.id}
                 className={cn(
@@ -162,7 +151,7 @@ export function CommunityChat({ communityId }: CommunityChatProps) {
                 )}
               </div>
             ))}
-             {!loading && messages.length === 0 && (
+             {!isLoading && messages.length === 0 && (
                 <div className="text-center text-muted-foreground pt-16">
                     <p>No messages yet. Be the first to say something!</p>
                 </div>
@@ -176,9 +165,9 @@ export function CommunityChat({ communityId }: CommunityChatProps) {
             value={newMessage}
             onChange={(e) => setNewMessage(e.target.value)}
             placeholder="Type your message..."
-            disabled={!userData}
+            disabled={!userData || isLoading}
           />
-          <Button type="submit" size="icon" disabled={!newMessage.trim() || !userData}>
+          <Button type="submit" size="icon" disabled={!newMessage.trim() || !userData || isLoading}>
             <Send className="h-4 w-4" />
           </Button>
         </form>
