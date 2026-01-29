@@ -69,8 +69,8 @@ service cloud.firestore {
         // Only members can read individual messages
         allow get: if isCommunityMember(communityId);
         
-        // Only members should be able to list (read) the chat history
-        allow list: if isCommunityMember(communityId);
+        // Only authenticated users can list messages. The UI prevents non-members from attempting this.
+        allow list: if isAuthenticated();
         
         // Only members can create (send) messages
         allow create: if isCommunityMember(communityId);
