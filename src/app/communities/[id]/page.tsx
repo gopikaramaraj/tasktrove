@@ -222,13 +222,13 @@ export default function CommunityDetailPage({ params }: { params: { id: string }
           </Card>
       ) : (
         <Tabs defaultValue="challenges" className="w-full">
-            <TabsList className={cn("grid w-full", isOwner ? "grid-cols-6" : "grid-cols-5")}>
-            <TabsTrigger value="challenges">Challenges</TabsTrigger>
-            <TabsTrigger value="chat">Chat</TabsTrigger>
-            <TabsTrigger value="leaderboard">Leaderboard</TabsTrigger>
-            <TabsTrigger value="members">Members</TabsTrigger>
-            <TabsTrigger value="checkins">Live Check-ins</TabsTrigger>
-            {isOwner && <TabsTrigger value="manage-challenges">Manage Challenges</TabsTrigger>}
+            <TabsList className={cn("grid w-full", isOwner ? "grid-cols-6" : isMember ? "grid-cols-5" : "grid-cols-4")}>
+                <TabsTrigger value="challenges">Challenges</TabsTrigger>
+                {isMember && <TabsTrigger value="chat">Chat</TabsTrigger>}
+                <TabsTrigger value="leaderboard">Leaderboard</TabsTrigger>
+                <TabsTrigger value="members">Members</TabsTrigger>
+                <TabsTrigger value="checkins">Live Check-ins</TabsTrigger>
+                {isOwner && <TabsTrigger value="manage-challenges">Manage Challenges</TabsTrigger>}
             </TabsList>
             <TabsContent value="challenges" className="mt-6">
                 <div className="flex items-center justify-between mb-6">
@@ -254,9 +254,11 @@ export default function CommunityDetailPage({ params }: { params: { id: string }
                     </div>
                 )}
             </TabsContent>
-            <TabsContent value="chat" className="mt-6">
-              <CommunityChat communityId={id} />
-            </TabsContent>
+            {isMember && (
+                <TabsContent value="chat" className="mt-6">
+                <CommunityChat communityId={id} />
+                </TabsContent>
+            )}
             <TabsContent value="leaderboard" className="mt-6">
                 <Leaderboard users={members} />
             </TabsContent>
@@ -365,3 +367,5 @@ function CommunityDetailSkeleton() {
         </div>
     )
 }
+
+    
