@@ -20,329 +20,329 @@ import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
 import { cn } from '@/lib/utils';
 import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+    AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import { format } from 'date-fns';
 import { CommunityChat } from '@/components/communities/CommunityChat';
 
-export default function CommunityDetailPage({ params }: { params: { id: string } }) {
-  const { id } = use(params);
-  const { user, loading: authLoading } = useAuth();
-  const { toast } = useToast();
-  const [community, setCommunity] = useState<Community | null>(null);
-  const [challenges, setChallenges] = useState<Challenge[]>([]);
-  const [members, setMembers] = useState<User[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [isMember, setIsMember] = useState(false);
-  const [isProcessing, setIsProcessing] = useState(false);
+export default function CommunityDetailPage({ params }: { params: Promise<{ id: string }> }) {
+    const { id } = use(params);
+    const { user, loading: authLoading } = useAuth();
+    const { toast } = useToast();
+    const [community, setCommunity] = useState<Community | null>(null);
+    const [challenges, setChallenges] = useState<Challenge[]>([]);
+    const [members, setMembers] = useState<User[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [isMember, setIsMember] = useState(false);
+    const [isProcessing, setIsProcessing] = useState(false);
 
 
-  useEffect(() => {
-    const fetchCommunityData = async () => {
-      if (!id || authLoading) return;
-        setLoading(true);
-        try {
-            // Fetch community details
-            const communityDocRef = doc(db, 'communities', id);
-            const communityDoc = await getDoc(communityDocRef);
-            if (communityDoc.exists()) {
-                const communityData = { id: communityDoc.id, ...communityDoc.data() } as Community;
-                setCommunity(communityData);
+    useEffect(() => {
+        const fetchCommunityData = async () => {
+            if (!id || authLoading) return;
+            setLoading(true);
+            try {
+                // Fetch community details
+                const communityDocRef = doc(db, 'communities', id);
+                const communityDoc = await getDoc(communityDocRef);
+                if (communityDoc.exists()) {
+                    const communityData = { id: communityDoc.id, ...communityDoc.data() } as Community;
+                    setCommunity(communityData);
 
-                // Fetch members (users) of the community
-                const membersQuery = collection(db, 'communities', id, 'members');
-                const membersSnapshot = await getDocs(membersQuery);
-                const memberIds = membersSnapshot.docs.map(doc => doc.id);
-                
-                if (user && memberIds.includes(user.uid)) {
-                    setIsMember(true);
+                    // Fetch members (users) of the community
+                    const membersQuery = collection(db, 'communities', id, 'members');
+                    const membersSnapshot = await getDocs(membersQuery);
+                    const memberIds = membersSnapshot.docs.map(doc => doc.id);
+
+                    if (user && memberIds.includes(user.uid)) {
+                        setIsMember(true);
+                    }
+
+                    if (memberIds.length > 0) {
+                        const usersQuery = collection(db, 'users');
+                        const usersSnapshot = await getDocs(usersQuery);
+                        const allUsers = usersSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }) as User);
+                        const communityMembers = allUsers.filter(user => memberIds.includes(user.id));
+                        setMembers(communityMembers);
+                    } else {
+                        setMembers([]);
+                    }
                 }
 
-                if (memberIds.length > 0) {
-                    const usersQuery = collection(db, 'users');
-                    const usersSnapshot = await getDocs(usersQuery);
-                    const allUsers = usersSnapshot.docs.map(doc => ({id: doc.id, ...doc.data()}) as User);
-                    const communityMembers = allUsers.filter(user => memberIds.includes(user.id));
-                    setMembers(communityMembers);
-                } else {
-                    setMembers([]);
-                }
+                // Fetch challenges for the community
+                const challengesQuery = collection(db, 'communities', id, 'challenges');
+                const challengesSnapshot = await getDocs(challengesQuery);
+                const challengesList = challengesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Challenge));
+                setChallenges(challengesList);
+
+            } catch (error) {
+                console.error("Failed to fetch community data:", error);
+                toast({ variant: 'destructive', title: 'Error', description: 'Could not load community details.' });
             }
-            
-            // Fetch challenges for the community
-            const challengesQuery = collection(db, 'communities', id, 'challenges');
-            const challengesSnapshot = await getDocs(challengesQuery);
-            const challengesList = challengesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Challenge));
-            setChallenges(challengesList);
+            setLoading(false);
+        };
 
-        } catch (error) {
-            console.error("Failed to fetch community data:", error);
-            toast({ variant: 'destructive', title: 'Error', description: 'Could not load community details.' });
+        fetchCommunityData();
+    }, [id, user, toast, authLoading]);
+
+    const handleJoinLeaveCommunity = async () => {
+        if (!user || !community) return;
+        setIsProcessing(true);
+
+        const batch = writeBatch(db);
+        const memberDocRef = doc(db, 'communities', community.id, 'members', user.uid);
+        const communityDocRef = doc(db, 'communities', community.id);
+        const currentUserData = members.find(m => m.id === user.uid);
+
+        if (isMember) {
+            // Leave community
+            batch.delete(memberDocRef);
+            batch.update(communityDocRef, { memberCount: increment(-1) });
+            batch.commit()
+                .then(() => {
+                    setMembers(prev => prev.filter(m => m.id !== user.uid));
+                    setCommunity(prev => prev ? { ...prev, memberCount: prev.memberCount - 1 } : null);
+                    setIsMember(false);
+                    toast({ title: 'Community Left', description: `You have left ${community.name}.` });
+                    setIsProcessing(false);
+                })
+                .catch(async (serverError) => {
+                    const permissionError = new FirestorePermissionError({
+                        path: memberDocRef.path,
+                        operation: 'delete',
+                    });
+                    errorEmitter.emit('permission-error', permissionError);
+                    setIsProcessing(false);
+                });
+        } else {
+            // Join community
+            const memberData = { joinedAt: new Date(), role: 'member' };
+            batch.set(memberDocRef, memberData);
+            batch.update(communityDocRef, { memberCount: increment(1) });
+            batch.commit()
+                .then(async () => {
+                    if (currentUserData) {
+                        setMembers(prev => [...prev, currentUserData]);
+                    } else {
+                        const userDoc = await getDoc(doc(db, 'users', user.uid));
+                        if (userDoc.exists()) setMembers(prev => [...prev, { id: userDoc.id, ...userDoc.data() } as User]);
+                    }
+                    setCommunity(prev => prev ? { ...prev, memberCount: prev.memberCount + 1 } : null);
+                    setIsMember(true);
+                    toast({ title: 'Community Joined!', description: `Welcome to ${community.name}!` });
+                    setIsProcessing(false);
+                })
+                .catch(async (serverError) => {
+                    const permissionError = new FirestorePermissionError({
+                        path: memberDocRef.path,
+                        operation: 'create',
+                        requestResourceData: memberData,
+                    });
+                    errorEmitter.emit('permission-error', permissionError);
+                    setIsProcessing(false);
+                });
         }
-        setLoading(false);
-    };
-
-    fetchCommunityData();
-  }, [id, user, toast, authLoading]);
-
-  const handleJoinLeaveCommunity = async () => {
-    if (!user || !community) return;
-    setIsProcessing(true);
-
-    const batch = writeBatch(db);
-    const memberDocRef = doc(db, 'communities', community.id, 'members', user.uid);
-    const communityDocRef = doc(db, 'communities', community.id);
-    const currentUserData = members.find(m => m.id === user.uid);
-
-    if (isMember) {
-        // Leave community
-        batch.delete(memberDocRef);
-        batch.update(communityDocRef, { memberCount: increment(-1) });
-        batch.commit()
-            .then(() => {
-                setMembers(prev => prev.filter(m => m.id !== user.uid));
-                setCommunity(prev => prev ? {...prev, memberCount: prev.memberCount - 1} : null);
-                setIsMember(false);
-                toast({ title: 'Community Left', description: `You have left ${community.name}.` });
-                setIsProcessing(false);
-            })
-            .catch(async (serverError) => {
-                const permissionError = new FirestorePermissionError({
-                    path: memberDocRef.path,
-                    operation: 'delete',
-                });
-                errorEmitter.emit('permission-error', permissionError);
-                setIsProcessing(false);
-            });
-    } else {
-        // Join community
-        const memberData = { joinedAt: new Date(), role: 'member' };
-        batch.set(memberDocRef, memberData);
-        batch.update(communityDocRef, { memberCount: increment(1) });
-        batch.commit()
-            .then(async () => {
-                if (currentUserData) {
-                    setMembers(prev => [...prev, currentUserData]);
-                } else {
-                    const userDoc = await getDoc(doc(db, 'users', user.uid));
-                    if(userDoc.exists()) setMembers(prev => [...prev, {id: userDoc.id, ...userDoc.data()} as User]);
-                }
-                setCommunity(prev => prev ? {...prev, memberCount: prev.memberCount + 1} : null);
-                setIsMember(true);
-                toast({ title: 'Community Joined!', description: `Welcome to ${community.name}!` });
-                setIsProcessing(false);
-            })
-            .catch(async (serverError) => {
-                const permissionError = new FirestorePermissionError({
-                    path: memberDocRef.path,
-                    operation: 'create',
-                    requestResourceData: memberData,
-                });
-                errorEmitter.emit('permission-error', permissionError);
-                setIsProcessing(false);
-            });
     }
-  }
 
-  const handleDeleteChallenge = async (challengeId: string) => {
-    if (!community) return;
-    try {
-        await deleteDoc(doc(db, 'communities', community.id, 'challenges', challengeId));
-        setChallenges(prev => prev.filter(c => c.id !== challengeId));
-        toast({
-            title: "Challenge Deleted",
-            description: "The challenge has been removed from the community."
-        });
-    } catch(error) {
-        console.error("Error deleting challenge:", error);
-        const permissionError = new FirestorePermissionError({
-            path: doc(db, 'communities', community.id, 'challenges', challengeId).path,
-            operation: 'delete',
-        });
-        errorEmitter.emit('permission-error', permissionError);
+    const handleDeleteChallenge = async (challengeId: string) => {
+        if (!community) return;
+        try {
+            await deleteDoc(doc(db, 'communities', community.id, 'challenges', challengeId));
+            setChallenges(prev => prev.filter(c => c.id !== challengeId));
+            toast({
+                title: "Challenge Deleted",
+                description: "The challenge has been removed from the community."
+            });
+        } catch (error) {
+            console.error("Error deleting challenge:", error);
+            const permissionError = new FirestorePermissionError({
+                path: doc(db, 'communities', community.id, 'challenges', challengeId).path,
+                operation: 'delete',
+            });
+            errorEmitter.emit('permission-error', permissionError);
+        }
     }
-  }
 
 
-  if (loading || authLoading) {
-    return <CommunityDetailSkeleton />
-  }
-  
-  if (!community) {
-      return <div>Community not found.</div>
-  }
+    if (loading || authLoading) {
+        return <CommunityDetailSkeleton />
+    }
 
-  const isOwner = user && community && user.uid === community.ownerId;
-  const isPrivateAndNotMember = community.isPrivate && !isMember;
+    if (!community) {
+        return <div>Community not found.</div>
+    }
 
-  return (
-    <div className="space-y-8">
-      <div className="relative h-48 md:h-64 w-full rounded-lg overflow-hidden">
-        <Image src={community.bannerUrl} layout="fill" objectFit="cover" alt={`${community.name} banner`} data-ai-hint="community technology" />
-        <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
-        <div className="absolute bottom-6 left-6">
-          <h1 className="text-3xl md:text-5xl font-bold text-white font-headline">{community.name}</h1>
-          <p className="text-white/90 max-w-2xl mt-1">{community.description}</p>
-        </div>
-        <div className="absolute top-4 right-4 flex items-center gap-2">
-            {user && (
-                <Button 
-                    className={isMember ? "bg-secondary hover:bg-secondary/80" : "bg-accent hover:bg-accent/90 text-accent-foreground"}
-                    onClick={handleJoinLeaveCommunity}
-                    disabled={isProcessing || (isOwner && isMember)}
-                >
-                    {isMember ? (isOwner ? <><Check className="mr-2 h-4 w-4" />Owner</> : <><LogOut className="mr-2 h-4 w-4" />Leave</>) : <><UserPlus className="mr-2 h-4 w-4" />Join</>}
-                </Button>
-            )}
-             {isOwner && (
-              <Button variant="secondary" asChild>
-                <Link href={`/communities/${id}/settings`}>
-                  <Settings className="mr-2 h-4 w-4" />
-                  Settings
-                </Link>
-              </Button>
-            )}
-        </div>
-      </div>
+    const isOwner = user && community && user.uid === community.ownerId;
+    const isPrivateAndNotMember = community.isPrivate && !isMember;
 
-      {isPrivateAndNotMember ? (
-          <Card className="text-center p-8">
-            <CardTitle>This community is private</CardTitle>
-            <CardContent className="mt-4">
-                <p>You must be a member to see its content.</p>
-            </CardContent>
-          </Card>
-      ) : (
-        <Tabs defaultValue="challenges" className="w-full">
-            <TabsList className={cn("grid w-full", isOwner ? "grid-cols-6" : isMember ? "grid-cols-5" : "grid-cols-4")}>
-                <TabsTrigger value="challenges">Challenges</TabsTrigger>
-                {isMember && <TabsTrigger value="chat">Chat</TabsTrigger>}
-                <TabsTrigger value="leaderboard">Leaderboard</TabsTrigger>
-                <TabsTrigger value="members">Members</TabsTrigger>
-                <TabsTrigger value="checkins">Live Check-ins</TabsTrigger>
-                {isOwner && <TabsTrigger value="manage-challenges">Manage Challenges</TabsTrigger>}
-            </TabsList>
-            <TabsContent value="challenges" className="mt-6">
-                <div className="flex items-center justify-between mb-6">
-                    <h3 className="text-2xl font-semibold font-headline">Active Challenges</h3>
+    return (
+        <div className="space-y-8">
+            <div className="relative h-48 md:h-64 w-full rounded-lg overflow-hidden">
+                <Image src={community.bannerUrl} layout="fill" objectFit="cover" alt={`${community.name} banner`} data-ai-hint="community technology" />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
+                <div className="absolute bottom-6 left-6">
+                    <h1 className="text-3xl md:text-5xl font-bold text-white font-headline">{community.name}</h1>
+                    <p className="text-white/90 max-w-2xl mt-1">{community.description}</p>
+                </div>
+                <div className="absolute top-4 right-4 flex items-center gap-2">
+                    {user && (
+                        <Button
+                            className={isMember ? "bg-secondary hover:bg-secondary/80" : "bg-accent hover:bg-accent/90 text-accent-foreground"}
+                            onClick={handleJoinLeaveCommunity}
+                            disabled={isProcessing || !!(isOwner && isMember)}
+                        >
+                            {isMember ? (isOwner ? <><Check className="mr-2 h-4 w-4" />Owner</> : <><LogOut className="mr-2 h-4 w-4" />Leave</>) : <><UserPlus className="mr-2 h-4 w-4" />Join</>}
+                        </Button>
+                    )}
                     {isOwner && (
-                        <Button variant="outline" asChild>
-                            <Link href={`/communities/${id}/challenges/create`}>
-                            <PlusCircle className="mr-2 h-4 w-4" />
-                            New Challenge
+                        <Button variant="secondary" asChild>
+                            <Link href={`/communities/${id}/settings`}>
+                                <Settings className="mr-2 h-4 w-4" />
+                                Settings
                             </Link>
                         </Button>
                     )}
                 </div>
-                {challenges.length > 0 ? (
-                    <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-                        {challenges.map(challenge => (
-                            <ChallengeCard key={challenge.id} challenge={challenge} />
-                        ))}
-                    </div>
-                ) : (
-                    <div className="text-center p-8 border-2 border-dashed rounded-lg bg-secondary">
-                        <p className="text-muted-foreground">No active challenges in this community yet.</p>
-                    </div>
-                )}
-            </TabsContent>
-            {isMember && (
-                <TabsContent value="chat" className="mt-6">
-                <CommunityChat communityId={id} />
-                </TabsContent>
-            )}
-            <TabsContent value="leaderboard" className="mt-6">
-                <Leaderboard users={members} />
-            </TabsContent>
-            <TabsContent value="members" className="mt-6">
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-                {members.map(user => (
-                    <div key={user.id} className="flex items-center gap-4 p-4 rounded-lg bg-secondary">
-                        <Avatar>
-                            <AvatarImage src={user.avatarUrl} alt={user.name} data-ai-hint="person" />
-                            <AvatarFallback>{user.name.charAt(0)}</AvatarFallback>
-                        </Avatar>
-                        <div>
-                            <p className="font-semibold">{user.name}</p>
-                            <p className="text-sm text-muted-foreground">{user.xp.toLocaleString()} XP</p>
-                        </div>
-                    </div>
-                ))}
-                </div>
-            </TabsContent>
-            <TabsContent value="checkins" className="mt-6">
-                <div className="text-center p-8 border-2 border-dashed rounded-lg bg-secondary">
-                    <Video className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
-                    <h3 className="text-xl font-semibold font-headline">Live Check-ins</h3>
-                    <p className="text-muted-foreground mb-4">No live check-ins scheduled. Start one for a challenge!</p>
-                    <LiveCheckinDialog triggerButton={<Button><Video className="mr-2 h-4 w-4"/>Start a Check-in</Button>} />
-                </div>
-            </TabsContent>
-            {isOwner && (
-                <TabsContent value="manage-challenges" className="mt-6">
-                    <Card>
-                        <CardHeader>
-                            <CardTitle>Manage Challenges</CardTitle>
-                            <CardDescription>
-                                Here you can edit, archive, or delete challenges for this community.
-                            </CardDescription>
-                        </CardHeader>
-                        <CardContent className="space-y-4">
-                            {challenges.length > 0 ? (
-                                challenges.map((challenge) => (
-                                    <div key={challenge.id} className="flex items-center justify-between p-3 rounded-lg bg-secondary">
-                                        <div className="min-w-0">
-                                            <p className="font-semibold truncate">{challenge.title}</p>
-                                            <p className="text-sm text-muted-foreground">
-                                                {challenge.participantCount || 0} Participants | {challenge.xp || 0} XP
-                                                {challenge.endDate && ` | Ends: ${format(new Date(challenge.endDate.seconds * 1000), 'MMM d, yyyy')}`}
-                                            </p>
-                                        </div>
-                                        <div className="flex items-center gap-2 flex-shrink-0">
-                                            <Button variant="outline" size="sm" disabled>Archive</Button>
-                                            <AlertDialog>
-                                                <AlertDialogTrigger asChild>
-                                                    <Button variant="destructive" size="sm">
-                                                        <Trash2 className="h-4 w-4" />
-                                                    </Button>
-                                                </AlertDialogTrigger>
-                                                <AlertDialogContent>
-                                                    <AlertDialogHeader>
-                                                        <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-                                                        <AlertDialogDescription>
-                                                            This will permanently delete the "{challenge.title}" challenge and all its data. This action cannot be undone.
-                                                        </AlertDialogDescription>
-                                                    </AlertDialogHeader>
-                                                    <AlertDialogFooter>
-                                                        <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                                        <AlertDialogAction onClick={() => handleDeleteChallenge(challenge.id)} className="bg-destructive hover:bg-destructive/90">
-                                                            Delete Challenge
-                                                        </AlertDialogAction>
-                                                    </AlertDialogFooter>
-                                                </AlertDialogContent>
-                                            </AlertDialog>
-                                        </div>
-                                    </div>
-                                ))
-                            ) : (
-                                <p className="text-muted-foreground text-center p-4">No challenges to manage.</p>
+            </div>
+
+            {isPrivateAndNotMember ? (
+                <Card className="text-center p-8">
+                    <CardTitle>This community is private</CardTitle>
+                    <CardContent className="mt-4">
+                        <p>You must be a member to see its content.</p>
+                    </CardContent>
+                </Card>
+            ) : (
+                <Tabs defaultValue="challenges" className="w-full">
+                    <TabsList className={cn("grid w-full", isOwner ? "grid-cols-6" : isMember ? "grid-cols-5" : "grid-cols-4")}>
+                        <TabsTrigger value="challenges">Challenges</TabsTrigger>
+                        {isMember && <TabsTrigger value="chat">Chat</TabsTrigger>}
+                        <TabsTrigger value="leaderboard">Leaderboard</TabsTrigger>
+                        <TabsTrigger value="members">Members</TabsTrigger>
+                        <TabsTrigger value="checkins">Live Check-ins</TabsTrigger>
+                        {isOwner && <TabsTrigger value="manage-challenges">Manage Challenges</TabsTrigger>}
+                    </TabsList>
+                    <TabsContent value="challenges" className="mt-6">
+                        <div className="flex items-center justify-between mb-6">
+                            <h3 className="text-2xl font-semibold font-headline">Active Challenges</h3>
+                            {isOwner && (
+                                <Button variant="outline" asChild>
+                                    <Link href={`/communities/${id}/challenges/create`}>
+                                        <PlusCircle className="mr-2 h-4 w-4" />
+                                        New Challenge
+                                    </Link>
+                                </Button>
                             )}
-                        </CardContent>
-                    </Card>
-                </TabsContent>
+                        </div>
+                        {challenges.length > 0 ? (
+                            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+                                {challenges.map(challenge => (
+                                    <ChallengeCard key={challenge.id} challenge={challenge} />
+                                ))}
+                            </div>
+                        ) : (
+                            <div className="text-center p-8 border-2 border-dashed rounded-lg bg-secondary">
+                                <p className="text-muted-foreground">No active challenges in this community yet.</p>
+                            </div>
+                        )}
+                    </TabsContent>
+                    {isMember && (
+                        <TabsContent value="chat" className="mt-6">
+                            <CommunityChat communityId={id} />
+                        </TabsContent>
+                    )}
+                    <TabsContent value="leaderboard" className="mt-6">
+                        <Leaderboard users={members} />
+                    </TabsContent>
+                    <TabsContent value="members" className="mt-6">
+                        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+                            {members.map(user => (
+                                <div key={user.id} className="flex items-center gap-4 p-4 rounded-lg bg-secondary">
+                                    <Avatar>
+                                        <AvatarImage src={user.avatarUrl} alt={user.name} data-ai-hint="person" />
+                                        <AvatarFallback>{user.name.charAt(0)}</AvatarFallback>
+                                    </Avatar>
+                                    <div>
+                                        <p className="font-semibold">{user.name}</p>
+                                        <p className="text-sm text-muted-foreground">{user.xp.toLocaleString()} XP</p>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    </TabsContent>
+                    <TabsContent value="checkins" className="mt-6">
+                        <div className="text-center p-8 border-2 border-dashed rounded-lg bg-secondary">
+                            <Video className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
+                            <h3 className="text-xl font-semibold font-headline">Live Check-ins</h3>
+                            <p className="text-muted-foreground mb-4">No live check-ins scheduled. Start one for a challenge!</p>
+                            <LiveCheckinDialog communityId={id} triggerButton={<Button><Video className="mr-2 h-4 w-4" />Start a Check-in</Button>} />
+                        </div>
+                    </TabsContent>
+                    {isOwner && (
+                        <TabsContent value="manage-challenges" className="mt-6">
+                            <Card>
+                                <CardHeader>
+                                    <CardTitle>Manage Challenges</CardTitle>
+                                    <CardDescription>
+                                        Here you can edit, archive, or delete challenges for this community.
+                                    </CardDescription>
+                                </CardHeader>
+                                <CardContent className="space-y-4">
+                                    {challenges.length > 0 ? (
+                                        challenges.map((challenge) => (
+                                            <div key={challenge.id} className="flex items-center justify-between p-3 rounded-lg bg-secondary">
+                                                <div className="min-w-0">
+                                                    <p className="font-semibold truncate">{challenge.title}</p>
+                                                    <p className="text-sm text-muted-foreground">
+                                                        {challenge.participantCount || 0} Participants | {challenge.xp || 0} XP
+                                                        {challenge.endDate && ` | Ends: ${format(new Date(challenge.endDate.seconds * 1000), 'MMM d, yyyy')}`}
+                                                    </p>
+                                                </div>
+                                                <div className="flex items-center gap-2 flex-shrink-0">
+                                                    <Button variant="outline" size="sm" disabled>Archive</Button>
+                                                    <AlertDialog>
+                                                        <AlertDialogTrigger asChild>
+                                                            <Button variant="destructive" size="sm">
+                                                                <Trash2 className="h-4 w-4" />
+                                                            </Button>
+                                                        </AlertDialogTrigger>
+                                                        <AlertDialogContent>
+                                                            <AlertDialogHeader>
+                                                                <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                                                                <AlertDialogDescription>
+                                                                    This will permanently delete the "{challenge.title}" challenge and all its data. This action cannot be undone.
+                                                                </AlertDialogDescription>
+                                                            </AlertDialogHeader>
+                                                            <AlertDialogFooter>
+                                                                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                                                <AlertDialogAction onClick={() => handleDeleteChallenge(challenge.id)} className="bg-destructive hover:bg-destructive/90">
+                                                                    Delete Challenge
+                                                                </AlertDialogAction>
+                                                            </AlertDialogFooter>
+                                                        </AlertDialogContent>
+                                                    </AlertDialog>
+                                                </div>
+                                            </div>
+                                        ))
+                                    ) : (
+                                        <p className="text-muted-foreground text-center p-4">No challenges to manage.</p>
+                                    )}
+                                </CardContent>
+                            </Card>
+                        </TabsContent>
+                    )}
+                </Tabs>
             )}
-        </Tabs>
-      )}
-    </div>
-  );
+        </div>
+    );
 }
 
 
@@ -368,4 +368,4 @@ function CommunityDetailSkeleton() {
     )
 }
 
-    
+

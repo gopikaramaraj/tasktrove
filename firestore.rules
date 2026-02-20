@@ -72,6 +72,29 @@ service cloud.firestore {
           && request.resource.data.text is string
           && request.resource.data.createdAt is timestamp;
       }
+
+      // Live Check-in Rooms
+      match /liveRooms/{roomId} {
+        allow read, create: if isAuthenticated();
+        allow update, delete: if isAuthenticated();
+
+        // Participants — users can only write their own entry
+        match /participants/{userId} {
+          allow read: if isAuthenticated();
+          allow create, update: if isOwner(userId);
+          allow delete: if isOwner(userId) || isCommunityOwner(communityId);
+        }
+
+        // Signals — users can only create signals from themselves
+        match /signals/{signalId} {
+          allow read: if isAuthenticated();
+          allow create: if isAuthenticated()
+            && request.resource.data.from == request.auth.uid;
+          allow delete: if isAuthenticated()
+            && (resource.data.from == request.auth.uid
+             || resource.data.to == request.auth.uid);
+        }
+      }
     }
     
     // User Challenges Collection
