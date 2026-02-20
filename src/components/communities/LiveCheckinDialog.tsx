@@ -259,7 +259,6 @@ export function LiveCheckinDialog({
   }, []);
 
   useEffect(() => {
-    addDebug(`[LiveCheckinDialog] localStream state changed ${!!localStream}`);
   }, [localStream, addDebug]);
 
   // Refs
@@ -310,16 +309,12 @@ export function LiveCheckinDialog({
 
   // Cleanup on unmount or dialog close
   const cleanup = useCallback(async () => {
-    console.log('[LiveCheckinDialog] cleanup');
-    addDebug('[LiveCheckinDialog] cleanup');
     if (managerRef.current) {
       await managerRef.current.leave();
       managerRef.current = null;
     }
 
     if (localStreamRef.current) {
-      console.log('[LiveCheckinDialog] stopping local tracks');
-      addDebug('[LiveCheckinDialog] stopping local tracks');
       localStreamRef.current.getTracks().forEach((track) => track.stop());
       localStreamRef.current = null;
     }
@@ -366,8 +361,6 @@ export function LiveCheckinDialog({
   // ─── Join Room ─────────────────────────────────────────────────────────
 
   const joinRoom = async () => {
-    addDebug('[LiveCheckinDialog] joinRoom start');
-    console.log('[LiveCheckinDialog] joinRoom start');
     if (!user || !userData) {
       toast({
         variant: 'destructive',
@@ -405,8 +398,6 @@ export function LiveCheckinDialog({
 
       // 3. Wire callbacks
       manager.onRemoteStream = (info: RemotePeerInfo) => {
-        console.log('[LiveCheckinDialog] onRemoteStream', info.peerId, info.stream);
-        addDebug(`[LiveCheckinDialog] onRemoteStream ${info.peerId}`);
         const peerInfo = participantInfoRef.current.get(info.peerId);
         setRemotePeers((prev) => {
           const next = new Map(prev);
@@ -420,8 +411,6 @@ export function LiveCheckinDialog({
       };
 
       manager.onPeerLeft = (peerId: string) => {
-        console.log('[LiveCheckinDialog] onPeerLeft', peerId);
-        addDebug(`[LiveCheckinDialog] onPeerLeft ${peerId}`);
         setRemotePeers((prev) => {
           const next = new Map(prev);
           next.delete(peerId);
@@ -430,8 +419,6 @@ export function LiveCheckinDialog({
       };
 
       manager.onParticipantCount = (count: number) => {
-        console.log('[LiveCheckinDialog] participantCount', count);
-        addDebug(`[LiveCheckinDialog] participantCount ${count}`);
         setParticipantCount(count);
       };
 
