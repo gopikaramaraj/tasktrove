@@ -35,9 +35,14 @@ interface LiveCheckinDialogProps {
   roomId?: string;
 }
 
+// used to force video playback after a user gesture (autoplay policies)
+interface PlayTriggerProps {
+  playTrigger: number;
+}
+
 // ─── Local Video Tile ────────────────────────────────────────────────────────
 
-function LocalVideoTile({ stream }: { stream: MediaStream | null }) {
+function LocalVideoTile({ stream, playTrigger }: { stream: MediaStream | null; playTrigger: number }) {
   const videoRef = useRef<HTMLVideoElement>(null);
 
   useEffect(() => {
@@ -55,7 +60,8 @@ function LocalVideoTile({ stream }: { stream: MediaStream | null }) {
         videoEl.onloadedmetadata = playVideo;
       }
     }
-  }, [stream]);
+  // include playTrigger to re-run when the user interacts with the page
+  }, [stream, playTrigger]);
 
   return (
     <video
@@ -70,8 +76,9 @@ function LocalVideoTile({ stream }: { stream: MediaStream | null }) {
 
 // ─── Remote Video Tile ───────────────────────────────────────────────────────
 
-function RemoteVideoTile({ peer, peerId }: { peer: RemotePeerState; peerId: string }) {
+function RemoteVideoTile({ peer, peerId, playTrigger }: { peer: RemotePeerState; peerId: string; playTrigger: number }) {
   const videoRef = useRef<HTMLVideoElement>(null);
+  const [muted, setMuted] = useState(true);
 
   useEffect(() => {
     const videoEl = videoRef.current;
@@ -94,7 +101,14 @@ function RemoteVideoTile({ peer, peerId }: { peer: RemotePeerState; peerId: stri
         videoEl.onloadedmetadata = null;
       }
     };
-  }, [peer.stream]);
+  }, [peer.stream, playTrigger]);
+
+  // unmute when user has interacted
+  useEffect(() => {
+    if (playTrigger > 0) {
+      setMuted(false);
+    }
+  }, [playTrigger]);
 
   const hasVideo = peer.stream.getVideoTracks().some((t) => t.enabled && !t.muted);
 
@@ -105,6 +119,7 @@ function RemoteVideoTile({ peer, peerId }: { peer: RemotePeerState; peerId: stri
         className="w-full h-full object-cover"
         autoPlay
         playsInline
+        muted={muted}
       />
       {!hasVideo && (
         <div className="absolute inset-0 flex items-center justify-center bg-slate-800">
@@ -154,6 +169,10 @@ export function LiveCheckinDialog({
   const [isOpen, setIsOpen] = useState(false);
   const [isJoined, setIsJoined] = useState(false);
   const [isConnecting, setIsConnecting] = useState(false);
+
+  // user interaction trigger (autoplay policies)
+  const [playTrigger, setPlayTrigger] = useState(0);
+  const registerInteraction = useCallback(() => setPlayTrigger((n) => n + 1), []);
 
   // Media controls
   const [micOn, setMicOn] = useState(true);
@@ -277,6 +296,8 @@ export function LiveCheckinDialog({
     setIsConnecting(true);
 
     try {
+      // register the fact that the user clicked join (gesture for autoplay)
+      registerInteraction();
       // 1. Get local media
       const stream = await navigator.mediaDevices.getUserMedia({
         video: true,
@@ -285,6 +306,9 @@ export function LiveCheckinDialog({
       localStreamRef.current = stream;
       setLocalStream(stream);
       setHasCameraPermission(true);
+      // in case the initial play call was blocked by the permission prompt,
+      // re-trigger playback once we have the stream
+      registerInteraction();
 
       // 2. Create manager
       const manager = new LiveCheckinRoomManager({
@@ -358,6 +382,7 @@ export function LiveCheckinDialog({
   // ─── Media Controls ────────────────────────────────────────────────────
 
   const toggleMic = () => {
+    registerInteraction();
     if (localStreamRef.current) {
       const audioTrack = localStreamRef.current.getAudioTracks()[0];
       if (audioTrack) {
@@ -368,6 +393,7 @@ export function LiveCheckinDialog({
   };
 
   const toggleVideo = () => {
+    registerInteraction();
     if (localStreamRef.current) {
       const videoTrack = localStreamRef.current.getVideoTracks()[0];
       if (videoTrack) {
@@ -441,11 +467,11 @@ export function LiveCheckinDialog({
             </div>
 
             {/* Video Grid Area */}
-            <div className="flex-1 bg-slate-900 p-3 overflow-auto">
+            <div className="flex-1 bg-slate-900 p-3 overflow-auto" onClick={registerInteraction}>
               <VideoGrid count={totalTiles}>
                 {/* Local video tile */}
                 <div className="relative w-full h-full bg-slate-800 rounded-lg overflow-hidden flex items-center justify-center min-h-[120px]">
-                  <LocalVideoTile stream={localStream} />
+                  <LocalVideoTile stream={localStream} playTrigger={playTrigger} />
                   {!videoOn && (
                     <div className="absolute inset-0 flex items-center justify-center bg-slate-800">
                       <Avatar className="h-16 w-16">
@@ -468,7 +494,7 @@ export function LiveCheckinDialog({
 
                 {/* Remote video tiles */}
                 {Array.from(remotePeers.entries()).map(([peerId, peer]) => (
-                  <RemoteVideoTile key={peerId} peerId={peerId} peer={peer} />
+                  <RemoteVideoTile key={peerId} peerId={peerId} peer={peer} playTrigger={playTrigger} />
                 ))}
               </VideoGrid>
 
