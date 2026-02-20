@@ -47,18 +47,12 @@ function LocalVideoTile({ stream, playTrigger, addDebug }: { stream: MediaStream
 
   useEffect(() => {
     const videoEl = videoRef.current;
-    console.log('[LocalVideoTile] effect run', { stream, playTrigger });
-    addDebug?.(`[LocalVideoTile] effect run stream=${!!stream} trigger=${playTrigger}`);
     if (videoEl && stream) {
-      console.log('[LocalVideoTile] attaching stream', stream);
-      addDebug?.('[LocalVideoTile] attaching stream');
       // ensure muted so autoplay won't be blocked
       videoEl.muted = true;
       videoEl.srcObject = stream;
 
       const playVideo = () => {
-        console.log('[LocalVideoTile] attempting play');
-        addDebug?.('[LocalVideoTile] attempting play');
         videoEl.play().catch((err) => console.warn('Local video play failed:', err));
       };
 
@@ -70,15 +64,11 @@ function LocalVideoTile({ stream, playTrigger, addDebug }: { stream: MediaStream
 
       // also try again when the first frame is ready
       const onLoadedData = () => {
-        console.log('[LocalVideoTile] loadeddata event');
-        addDebug?.('[LocalVideoTile] loadeddata');
         playVideo();
       };
       videoEl.addEventListener('loadeddata', onLoadedData);
 
       if (playTrigger > 0) {
-        console.log('[LocalVideoTile] playTrigger > 0, replay');
-        addDebug?.('[LocalVideoTile] playTrigger replay');
         playVideo();
       }
 
@@ -87,8 +77,6 @@ function LocalVideoTile({ stream, playTrigger, addDebug }: { stream: MediaStream
       let cleanupTrack: (() => void) | null = null;
       if (track) {
         const onUnmute = () => {
-          console.log('[LocalVideoTile] track unmute event');
-          addDebug?.('[LocalVideoTile] track unmute');
           playVideo();
         };
         track.addEventListener('unmute', onUnmute);
