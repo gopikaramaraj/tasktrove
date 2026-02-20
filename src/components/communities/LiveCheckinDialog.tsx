@@ -218,6 +218,13 @@ export function LiveCheckinDialog({
     };
   }, [isJoined]);
 
+  // Attach local stream to video element after the in-call view mounts
+  useEffect(() => {
+    if (isJoined && localStreamRef.current && localVideoRef.current) {
+      localVideoRef.current.srcObject = localStreamRef.current;
+    }
+  }, [isJoined]);
+
   // ─── Join Room ─────────────────────────────────────────────────────────
 
   const joinRoom = async () => {
@@ -240,10 +247,6 @@ export function LiveCheckinDialog({
       });
       localStreamRef.current = stream;
       setHasCameraPermission(true);
-
-      if (localVideoRef.current) {
-        localVideoRef.current.srcObject = stream;
-      }
 
       // 2. Create manager
       const manager = new LiveCheckinRoomManager({
