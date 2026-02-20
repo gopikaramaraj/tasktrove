@@ -4,13 +4,12 @@ import {
   Dialog,
   DialogContent,
   DialogDescription,
-  DialogFooter,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { Mic, MicOff, Video, VideoOff, PhoneOff, UserSquare, Users, Loader2 } from 'lucide-react';
+import { Mic, MicOff, Video, VideoOff, PhoneOff, Users, Loader2 } from 'lucide-react';
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/use-auth';
@@ -36,18 +35,63 @@ interface LiveCheckinDialogProps {
   roomId?: string;
 }
 
+// ─── Local Video Tile ────────────────────────────────────────────────────────
+
+function LocalVideoTile({ stream }: { stream: MediaStream | null }) {
+  const videoRef = useRef<HTMLVideoElement>(null);
+
+  useEffect(() => {
+    const videoEl = videoRef.current;
+    if (videoEl && stream) {
+      videoEl.srcObject = stream;
+
+      const playVideo = () => {
+        videoEl.play().catch((err) => console.warn('Local video play failed:', err));
+      };
+
+      if (videoEl.readyState >= 1) {
+        playVideo();
+      } else {
+        videoEl.onloadedmetadata = playVideo;
+      }
+    }
+  }, [stream]);
+
+  return (
+    <video
+      ref={videoRef}
+      className="w-full h-full object-cover"
+      autoPlay
+      muted
+      playsInline
+    />
+  );
+}
+
 // ─── Remote Video Tile ───────────────────────────────────────────────────────
 
 function RemoteVideoTile({ peer, peerId }: { peer: RemotePeerState; peerId: string }) {
   const videoRef = useRef<HTMLVideoElement>(null);
 
   useEffect(() => {
-    if (videoRef.current && peer.stream) {
-      videoRef.current.srcObject = peer.stream;
+    const videoEl = videoRef.current;
+    if (videoEl && peer.stream) {
+      videoEl.srcObject = peer.stream;
+
+      const playVideo = () => {
+        videoEl.play().catch((err) => console.warn('Remote video play failed:', err));
+      };
+
+      if (videoEl.readyState >= 1) {
+        playVideo();
+      } else {
+        videoEl.onloadedmetadata = playVideo;
+      }
     }
     return () => {
-      if (videoRef.current) {
-        videoRef.current.srcObject = null;
+      if (videoEl) {
+        videoEl.srcObject = null;
+        videoEl.onloadedmetadata = null;
       }
     };
   }, [peer.stream]);
@@ -117,11 +161,12 @@ export function LiveCheckinDialog({
   const [hasCameraPermission, setHasCameraPermission] = useState(true);
 
   // Streams
+  const [localStream, setLocalStream] = useState<MediaStream | null>(null);
   const [remotePeers, setRemotePeers] = useState<Map<string, RemotePeerState>>(new Map());
   const [participantCount, setParticipantCount] = useState(0);
 
   // Refs
-  const localVideoRef = useRef<HTMLVideoElement>(null);
+  const localVideoRef = useRef<HTMLVideoElement | null>(null);
   const localStreamRef = useRef<MediaStream | null>(null);
   const managerRef = useRef<LiveCheckinRoomManager | null>(null);
 
@@ -178,10 +223,7 @@ export function LiveCheckinDialog({
       localStreamRef.current = null;
     }
 
-    if (localVideoRef.current) {
-      localVideoRef.current.srcObject = null;
-    }
-
+    setLocalStream(null);
     setRemotePeers(new Map());
     setIsJoined(false);
     setIsConnecting(false);
@@ -218,12 +260,7 @@ export function LiveCheckinDialog({
     };
   }, [isJoined]);
 
-  // Attach local stream to video element after the in-call view mounts
-  useEffect(() => {
-    if (isJoined && localStreamRef.current && localVideoRef.current) {
-      localVideoRef.current.srcObject = localStreamRef.current;
-    }
-  }, [isJoined]);
+  // Remove the useEffect since we'll use a ref callback directly on the video element
 
   // ─── Join Room ─────────────────────────────────────────────────────────
 
@@ -246,6 +283,7 @@ export function LiveCheckinDialog({
         audio: true,
       });
       localStreamRef.current = stream;
+      setLocalStream(stream);
       setHasCameraPermission(true);
 
       // 2. Create manager
@@ -407,13 +445,7 @@ export function LiveCheckinDialog({
               <VideoGrid count={totalTiles}>
                 {/* Local video tile */}
                 <div className="relative w-full h-full bg-slate-800 rounded-lg overflow-hidden flex items-center justify-center min-h-[120px]">
-                  <video
-                    ref={localVideoRef}
-                    className="w-full h-full object-cover"
-                    autoPlay
-                    muted
-                    playsInline
-                  />
+                  <LocalVideoTile stream={localStream} />
                   {!videoOn && (
                     <div className="absolute inset-0 flex items-center justify-center bg-slate-800">
                       <Avatar className="h-16 w-16">

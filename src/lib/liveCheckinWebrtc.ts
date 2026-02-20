@@ -300,18 +300,16 @@ export class LiveCheckinRoomManager {
             console.error(`[LiveCheckin] Error handling signal ${signal.type} from ${signal.from}:`, err);
         }
     }
-
     private async handleOffer(signal: SignalMessage): Promise<void> {
         const peerId = signal.from;
         let pc = this.peerConnections.get(peerId);
 
-        // If we already have a connection, close it and start fresh
-        if (pc) {
-            pc.close();
+        // If we don't have a connection, create one.
+        // Important: DO NOT close an existing connection here, as this could be a renegotiation!
+        if (!pc) {
+            pc = this.createPeerConnection(peerId);
+            this.peerConnections.set(peerId, pc);
         }
-
-        pc = this.createPeerConnection(peerId);
-        this.peerConnections.set(peerId, pc);
 
         const sdp = signal.payload as unknown as RTCSessionDescriptionInit;
         await pc.setRemoteDescription(new RTCSessionDescription(sdp));
@@ -331,7 +329,6 @@ export class LiveCheckinRoomManager {
             createdAt: null,
         });
     }
-
     private async handleAnswer(signal: SignalMessage): Promise<void> {
         const peerId = signal.from;
         const pc = this.peerConnections.get(peerId);
@@ -480,6 +477,27 @@ export class LiveCheckinRoomManager {
             }).catch((err) => {
                 console.warn(`[LiveCheckin] Error sending ICE candidate to ${peerId}:`, err);
             });
+        };
+
+        // Handle renegotiation (when tracks change)
+        pc.onnegotiationneeded = async () => {
+            if (this.destroyed) return;
+            // Only the designated "offerer" initiates renegotiation
+            if (this.config.userId < peerId) {
+                try {
+                    const offer = await pc.createOffer();
+                    await pc.setLocalDescription(offer);
+                    await this.sendSignal({
+                        type: 'offer',
+                        from: this.config.userId,
+                        to: peerId,
+                        payload: { type: offer.type, sdp: offer.sdp } as unknown as Record<string, unknown>,
+                        createdAt: null,
+                    });
+                } catch (err) {
+                    console.error(`[LiveCheckin] Error during renegotiation with ${peerId}:`, err);
+                }
+            }
         };
 
         // Handle connection state changes (reconnection logic)
