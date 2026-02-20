@@ -101,7 +101,7 @@ function LocalVideoTile({ stream, playTrigger, addDebug }: { stream: MediaStream
         if (cleanupTrack) cleanupTrack();
       };
     }
-  // include playTrigger to re-run when the user interacts with the page
+    // include playTrigger to re-run when the user interacts with the page
   }, [stream, playTrigger]);
 
   return (
@@ -123,18 +123,12 @@ function RemoteVideoTile({ peer, peerId, playTrigger, addDebug }: { peer: Remote
 
   useEffect(() => {
     const videoEl = videoRef.current;
-    console.log('[RemoteVideoTile] effect run', { peerId, playTrigger, stream: peer.stream });
-    addDebug?.(`[RemoteVideoTile] effect run peer=${peerId} trigger=${playTrigger}`);
     if (videoEl && peer.stream) {
-      console.log('[RemoteVideoTile] attaching stream', peer.stream);
-      addDebug?.(`[RemoteVideoTile] attaching stream peer=${peerId}`);
       // ensure element is muted before attempting playback so autoplay isn't blocked
       videoEl.muted = true;
       videoEl.srcObject = peer.stream;
 
       const playVideo = () => {
-        console.log('[RemoteVideoTile] attempting play');
-        addDebug?.('[RemoteVideoTile] attempting play');
         videoEl.play().catch((err) => console.warn('Remote video play failed:', err));
       };
 
@@ -146,8 +140,6 @@ function RemoteVideoTile({ peer, peerId, playTrigger, addDebug }: { peer: Remote
 
       // if we already have a user gesture, unmute and play again so audio flows
       if (playTrigger > 0) {
-        console.log('[RemoteVideoTile] playTrigger > 0, unmuting');
-        addDebug?.('[RemoteVideoTile] playTrigger unmute');
         videoEl.muted = false;
         setMuted(false);
         playVideo();
@@ -158,8 +150,6 @@ function RemoteVideoTile({ peer, peerId, playTrigger, addDebug }: { peer: Remote
       let cleanupTrack: (() => void) | null = null;
       if (track) {
         const onUnmute = () => {
-          console.log('[RemoteVideoTile] track unmute event');
-          addDebug?.('[RemoteVideoTile] track unmute');
           playVideo();
         };
         track.addEventListener('unmute', onUnmute);
