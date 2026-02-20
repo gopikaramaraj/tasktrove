@@ -42,15 +42,23 @@ interface PlayTriggerProps {
 
 // ─── Local Video Tile ────────────────────────────────────────────────────────
 
-function LocalVideoTile({ stream, playTrigger }: { stream: MediaStream | null; playTrigger: number }) {
+function LocalVideoTile({ stream, playTrigger, addDebug }: { stream: MediaStream | null; playTrigger: number; addDebug?: (msg: string) => void }) {
   const videoRef = useRef<HTMLVideoElement>(null);
 
   useEffect(() => {
     const videoEl = videoRef.current;
+    console.log('[LocalVideoTile] effect run', { stream, playTrigger });
+    addDebug?.(`[LocalVideoTile] effect run stream=${!!stream} trigger=${playTrigger}`);
     if (videoEl && stream) {
+      console.log('[LocalVideoTile] attaching stream', stream);
+      addDebug?.('[LocalVideoTile] attaching stream');
+      // ensure muted so autoplay won't be blocked
+      videoEl.muted = true;
       videoEl.srcObject = stream;
 
       const playVideo = () => {
+        console.log('[LocalVideoTile] attempting play');
+        addDebug?.('[LocalVideoTile] attempting play');
         videoEl.play().catch((err) => console.warn('Local video play failed:', err));
       };
 
@@ -59,6 +67,39 @@ function LocalVideoTile({ stream, playTrigger }: { stream: MediaStream | null; p
       } else {
         videoEl.onloadedmetadata = playVideo;
       }
+
+      // also try again when the first frame is ready
+      const onLoadedData = () => {
+        console.log('[LocalVideoTile] loadeddata event');
+        addDebug?.('[LocalVideoTile] loadeddata');
+        playVideo();
+      };
+      videoEl.addEventListener('loadeddata', onLoadedData);
+
+      if (playTrigger > 0) {
+        console.log('[LocalVideoTile] playTrigger > 0, replay');
+        addDebug?.('[LocalVideoTile] playTrigger replay');
+        playVideo();
+      }
+
+      // if the underlying track becomes unmuted/active later (e.g. after permissions), retry
+      const track = stream.getVideoTracks()[0];
+      let cleanupTrack: (() => void) | null = null;
+      if (track) {
+        const onUnmute = () => {
+          console.log('[LocalVideoTile] track unmute event');
+          addDebug?.('[LocalVideoTile] track unmute');
+          playVideo();
+        };
+        track.addEventListener('unmute', onUnmute);
+        cleanupTrack = () => track.removeEventListener('unmute', onUnmute);
+      }
+
+      return () => {
+        videoEl.onloadedmetadata = null;
+        videoEl.removeEventListener('loadeddata', onLoadedData);
+        if (cleanupTrack) cleanupTrack();
+      };
     }
   // include playTrigger to re-run when the user interacts with the page
   }, [stream, playTrigger]);
@@ -76,16 +117,24 @@ function LocalVideoTile({ stream, playTrigger }: { stream: MediaStream | null; p
 
 // ─── Remote Video Tile ───────────────────────────────────────────────────────
 
-function RemoteVideoTile({ peer, peerId, playTrigger }: { peer: RemotePeerState; peerId: string; playTrigger: number }) {
+function RemoteVideoTile({ peer, peerId, playTrigger, addDebug }: { peer: RemotePeerState; peerId: string; playTrigger: number; addDebug?: (msg: string) => void }) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [muted, setMuted] = useState(true);
 
   useEffect(() => {
     const videoEl = videoRef.current;
+    console.log('[RemoteVideoTile] effect run', { peerId, playTrigger, stream: peer.stream });
+    addDebug?.(`[RemoteVideoTile] effect run peer=${peerId} trigger=${playTrigger}`);
     if (videoEl && peer.stream) {
+      console.log('[RemoteVideoTile] attaching stream', peer.stream);
+      addDebug?.(`[RemoteVideoTile] attaching stream peer=${peerId}`);
+      // ensure element is muted before attempting playback so autoplay isn't blocked
+      videoEl.muted = true;
       videoEl.srcObject = peer.stream;
 
       const playVideo = () => {
+        console.log('[RemoteVideoTile] attempting play');
+        addDebug?.('[RemoteVideoTile] attempting play');
         videoEl.play().catch((err) => console.warn('Remote video play failed:', err));
       };
 
@@ -94,21 +143,39 @@ function RemoteVideoTile({ peer, peerId, playTrigger }: { peer: RemotePeerState;
       } else {
         videoEl.onloadedmetadata = playVideo;
       }
-    }
-    return () => {
-      if (videoEl) {
-        videoEl.srcObject = null;
-        videoEl.onloadedmetadata = null;
-      }
-    };
-  }, [peer.stream, playTrigger]);
 
-  // unmute when user has interacted
-  useEffect(() => {
-    if (playTrigger > 0) {
-      setMuted(false);
+      // if we already have a user gesture, unmute and play again so audio flows
+      if (playTrigger > 0) {
+        console.log('[RemoteVideoTile] playTrigger > 0, unmuting');
+        addDebug?.('[RemoteVideoTile] playTrigger unmute');
+        videoEl.muted = false;
+        setMuted(false);
+        playVideo();
+      }
+
+      // retry when the incoming track becomes unmuted
+      const track = peer.stream.getVideoTracks()[0];
+      let cleanupTrack: (() => void) | null = null;
+      if (track) {
+        const onUnmute = () => {
+          console.log('[RemoteVideoTile] track unmute event');
+          addDebug?.('[RemoteVideoTile] track unmute');
+          playVideo();
+        };
+        track.addEventListener('unmute', onUnmute);
+        cleanupTrack = () => track.removeEventListener('unmute', onUnmute);
+      }
+
+      return () => {
+        if (videoEl) {
+          videoEl.srcObject = null;
+          videoEl.onloadedmetadata = null;
+        }
+        if (cleanupTrack) cleanupTrack();
+      };
     }
-  }, [playTrigger]);
+    return undefined;
+  }, [peer.stream, playTrigger]);
 
   const hasVideo = peer.stream.getVideoTracks().some((t) => t.enabled && !t.muted);
 
@@ -184,6 +251,17 @@ export function LiveCheckinDialog({
   const [remotePeers, setRemotePeers] = useState<Map<string, RemotePeerState>>(new Map());
   const [participantCount, setParticipantCount] = useState(0);
 
+  // on-screen debug panel
+  const [debugMessages, setDebugMessages] = useState<string[]>([]);
+  const addDebug = useCallback((msg: string) => {
+    setDebugMessages((prev) => [...prev, msg].slice(-50));
+    console.log(msg);
+  }, []);
+
+  useEffect(() => {
+    addDebug(`[LiveCheckinDialog] localStream state changed ${!!localStream}`);
+  }, [localStream, addDebug]);
+
   // Refs
   const localVideoRef = useRef<HTMLVideoElement | null>(null);
   const localStreamRef = useRef<MediaStream | null>(null);
@@ -232,12 +310,16 @@ export function LiveCheckinDialog({
 
   // Cleanup on unmount or dialog close
   const cleanup = useCallback(async () => {
+    console.log('[LiveCheckinDialog] cleanup');
+    addDebug('[LiveCheckinDialog] cleanup');
     if (managerRef.current) {
       await managerRef.current.leave();
       managerRef.current = null;
     }
 
     if (localStreamRef.current) {
+      console.log('[LiveCheckinDialog] stopping local tracks');
+      addDebug('[LiveCheckinDialog] stopping local tracks');
       localStreamRef.current.getTracks().forEach((track) => track.stop());
       localStreamRef.current = null;
     }
@@ -284,6 +366,8 @@ export function LiveCheckinDialog({
   // ─── Join Room ─────────────────────────────────────────────────────────
 
   const joinRoom = async () => {
+    addDebug('[LiveCheckinDialog] joinRoom start');
+    console.log('[LiveCheckinDialog] joinRoom start');
     if (!user || !userData) {
       toast({
         variant: 'destructive',
@@ -321,6 +405,8 @@ export function LiveCheckinDialog({
 
       // 3. Wire callbacks
       manager.onRemoteStream = (info: RemotePeerInfo) => {
+        console.log('[LiveCheckinDialog] onRemoteStream', info.peerId, info.stream);
+        addDebug(`[LiveCheckinDialog] onRemoteStream ${info.peerId}`);
         const peerInfo = participantInfoRef.current.get(info.peerId);
         setRemotePeers((prev) => {
           const next = new Map(prev);
@@ -334,6 +420,8 @@ export function LiveCheckinDialog({
       };
 
       manager.onPeerLeft = (peerId: string) => {
+        console.log('[LiveCheckinDialog] onPeerLeft', peerId);
+        addDebug(`[LiveCheckinDialog] onPeerLeft ${peerId}`);
         setRemotePeers((prev) => {
           const next = new Map(prev);
           next.delete(peerId);
@@ -342,6 +430,8 @@ export function LiveCheckinDialog({
       };
 
       manager.onParticipantCount = (count: number) => {
+        console.log('[LiveCheckinDialog] participantCount', count);
+        addDebug(`[LiveCheckinDialog] participantCount ${count}`);
         setParticipantCount(count);
       };
 
@@ -411,6 +501,12 @@ export function LiveCheckinDialog({
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
       <DialogTrigger asChild>{triggerButton}</DialogTrigger>
       <DialogContent className="max-w-5xl p-0 overflow-hidden">
+        {/* always-visible debug overlay */}
+        {debugMessages.length > 0 && (
+          <div className="fixed top-4 right-4 max-h-40 w-1/3 overflow-auto text-xs bg-black/75 text-white p-2 rounded z-50">
+            <pre className="whitespace-pre-wrap">{debugMessages.join('\n')}</pre>
+          </div>
+        )}
         {!isJoined ? (
           /* ── Pre-Join Screen ──────────────────────────────────────── */
           <div className="flex flex-col items-center p-8 gap-6">
@@ -461,17 +557,14 @@ export function LiveCheckinDialog({
                   {participantCount}
                 </Badge>
               </div>
-              <p className="text-xs text-muted-foreground">
-                Room: {roomId}
-              </p>
             </div>
 
             {/* Video Grid Area */}
-            <div className="flex-1 bg-slate-900 p-3 overflow-auto" onClick={registerInteraction}>
+            <div className="flex-1 bg-slate-900 p-3 overflow-auto relative" onClick={registerInteraction}>
               <VideoGrid count={totalTiles}>
                 {/* Local video tile */}
                 <div className="relative w-full h-full bg-slate-800 rounded-lg overflow-hidden flex items-center justify-center min-h-[120px]">
-                  <LocalVideoTile stream={localStream} playTrigger={playTrigger} />
+                  <LocalVideoTile stream={localStream} playTrigger={playTrigger} addDebug={addDebug} />
                   {!videoOn && (
                     <div className="absolute inset-0 flex items-center justify-center bg-slate-800">
                       <Avatar className="h-16 w-16">
@@ -494,7 +587,7 @@ export function LiveCheckinDialog({
 
                 {/* Remote video tiles */}
                 {Array.from(remotePeers.entries()).map(([peerId, peer]) => (
-                  <RemoteVideoTile key={peerId} peerId={peerId} peer={peer} playTrigger={playTrigger} />
+                  <RemoteVideoTile key={peerId} peerId={peerId} peer={peer} playTrigger={playTrigger} addDebug={addDebug} />
                 ))}
               </VideoGrid>
 
@@ -502,6 +595,13 @@ export function LiveCheckinDialog({
                 <p className="text-center text-slate-400 text-sm mt-4 animate-pulse">
                   Waiting for other participants to join…
                 </p>
+              )}
+
+              {/* debug panel */}
+              {debugMessages.length > 0 && (
+                <div className="absolute bottom-2 right-2 max-h-24 w-3/4 overflow-auto text-xs bg-black/80 text-white p-2 rounded">
+                  <pre className="whitespace-pre-wrap">{debugMessages.join('\n')}</pre>
+                </div>
               )}
             </div>
 

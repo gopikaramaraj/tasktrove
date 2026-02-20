@@ -1,4 +1,9 @@
+# Project Documentation
+
+## Project Structure
+
 ```text
+├── .env
 ├── .firebaserc
 ├── .gitignore
 ├── .idx/
@@ -13,6 +18,7 @@
 ├── firebase.json
 ├── firestore.rules
 ├── generate-docs.js
+├── next-env.d.ts
 ├── next.config.ts
 ├── package-lock.json
 ├── package.json
@@ -124,9 +130,15 @@
 │   │   └── use-toast.ts
 │   └── lib/
 │       ├── firebase.ts
+│       ├── liveCheckinWebrtc.ts
 │       ├── placeholder-images.json
 │       ├── polyfill.ts
 │       ├── types.ts
 │       └── utils.ts
 ├── tailwind.config.ts
-└── tsconfig.json
+├── tsconfig.json
+└── tsconfig.tsbuildinfo
+```
+
+## Key File Contents
+

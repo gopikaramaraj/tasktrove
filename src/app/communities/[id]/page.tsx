@@ -186,7 +186,15 @@ export default function CommunityDetailPage({ params }: { params: Promise<{ id: 
     return (
         <div className="space-y-8">
             <div className="relative h-48 md:h-64 w-full rounded-lg overflow-hidden">
-                <Image src={community.bannerUrl} layout="fill" objectFit="cover" alt={`${community.name} banner`} data-ai-hint="community technology" />
+                {/* convert from legacy layout/objectFit props to new API */}
+                <Image
+                  src={community.bannerUrl}
+                  alt={`${community.name} banner`}
+                  fill
+                  className="object-cover"
+                  data-ai-hint="community technology"
+                  priority
+                />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
                 <div className="absolute bottom-6 left-6">
                     <h1 className="text-3xl md:text-5xl font-bold text-white font-headline">{community.name}</h1>
