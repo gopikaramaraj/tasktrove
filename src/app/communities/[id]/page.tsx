@@ -44,20 +44,17 @@ export default function CommunityDetailPage({ params }: { params: Promise<{ id: 
     const [isMember, setIsMember] = useState(false);
     const [isProcessing, setIsProcessing] = useState(false);
 
-
     useEffect(() => {
         const fetchCommunityData = async () => {
             if (!id || authLoading) return;
             setLoading(true);
             try {
-                // Fetch community details
                 const communityDocRef = doc(db, 'communities', id);
                 const communityDoc = await getDoc(communityDocRef);
                 if (communityDoc.exists()) {
                     const communityData = { id: communityDoc.id, ...communityDoc.data() } as Community;
                     setCommunity(communityData);
 
-                    // Fetch members (users) of the community
                     const membersQuery = collection(db, 'communities', id, 'members');
                     const membersSnapshot = await getDocs(membersQuery);
                     const memberIds = membersSnapshot.docs.map(doc => doc.id);
@@ -77,7 +74,6 @@ export default function CommunityDetailPage({ params }: { params: Promise<{ id: 
                     }
                 }
 
-                // Fetch challenges for the community
                 const challengesQuery = collection(db, 'communities', id, 'challenges');
                 const challengesSnapshot = await getDocs(challengesQuery);
                 const challengesList = challengesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Challenge));
@@ -103,7 +99,6 @@ export default function CommunityDetailPage({ params }: { params: Promise<{ id: 
         const currentUserData = members.find(m => m.id === user.uid);
 
         if (isMember) {
-            // Leave community
             batch.delete(memberDocRef);
             batch.update(communityDocRef, { memberCount: increment(-1) });
             batch.commit()
@@ -123,7 +118,6 @@ export default function CommunityDetailPage({ params }: { params: Promise<{ id: 
                     setIsProcessing(false);
                 });
         } else {
-            // Join community
             const memberData = { joinedAt: new Date(), role: 'member' };
             batch.set(memberDocRef, memberData);
             batch.update(communityDocRef, { memberCount: increment(1) });
@@ -150,7 +144,7 @@ export default function CommunityDetailPage({ params }: { params: Promise<{ id: 
                     setIsProcessing(false);
                 });
         }
-    }
+    };
 
     const handleDeleteChallenge = async (challengeId: string) => {
         if (!community) return;
@@ -169,15 +163,14 @@ export default function CommunityDetailPage({ params }: { params: Promise<{ id: 
             });
             errorEmitter.emit('permission-error', permissionError);
         }
-    }
-
+    };
 
     if (loading || authLoading) {
-        return <CommunityDetailSkeleton />
+        return <CommunityDetailSkeleton />;
     }
 
     if (!community) {
-        return <div>Community not found.</div>
+        return <div>Community not found.</div>;
     }
 
     const isOwner = user && community && user.uid === community.ownerId;
@@ -186,18 +179,24 @@ export default function CommunityDetailPage({ params }: { params: Promise<{ id: 
     return (
         <div className="space-y-8">
             <div className="relative h-48 md:h-64 w-full rounded-lg overflow-hidden">
-                {/* convert from legacy layout/objectFit props to new API */}
                 <Image
-                  src={community.bannerUrl}
-                  alt={`${community.name} banner`}
-                  fill
-                  className="object-cover"
-                  data-ai-hint="community technology"
-                  priority
+                    src={community.bannerUrl}
+                    alt={`${community.name} banner`}
+                    fill
+                    className="object-cover"
+                    data-ai-hint="community technology"
+                    priority
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
                 <div className="absolute bottom-6 left-6">
-                    <h1 className="text-3xl md:text-5xl font-bold text-white font-headline">{community.name}</h1>
+                    <div className="flex items-center gap-3">
+                        <h1 className="text-3xl md:text-5xl font-bold text-white font-headline">{community.name}</h1>
+                        {isOwner && (
+                            <span className="bg-yellow-400 text-black px-3 py-1 rounded-full text-sm font-semibold">
+                                 Admin
+                            </span>
+                        )}
+                    </div>
                     <p className="text-white/90 max-w-2xl mt-1">{community.description}</p>
                 </div>
                 <div className="absolute top-4 right-4 flex items-center gap-2">
@@ -236,11 +235,20 @@ export default function CommunityDetailPage({ params }: { params: Promise<{ id: 
                         <TabsTrigger value="leaderboard">Leaderboard</TabsTrigger>
                         <TabsTrigger value="members">Members</TabsTrigger>
                         <TabsTrigger value="checkins">Live Check-ins</TabsTrigger>
-                        {isOwner && <TabsTrigger value="manage-challenges">Manage Challenges</TabsTrigger>}
+                        {isOwner && <TabsTrigger value="manage-challenges">Admin Controls</TabsTrigger>}
                     </TabsList>
+
                     <TabsContent value="challenges" className="mt-6">
+                        {isOwner && (
+                            <div className="mb-4 p-3 bg-yellow-100 rounded-lg">
+                                <p className="text-sm font-medium"> You are the admin of this community.</p>
+                            </div>
+                        )}
+
                         <div className="flex items-center justify-between mb-6">
-                            <h3 className="text-2xl font-semibold font-headline">Active Challenges</h3>
+                            <h3 className="text-2xl font-semibold font-headline">
+                                Active Challenges
+                            </h3>
                             {isOwner && (
                                 <Button variant="outline" asChild>
                                     <Link href={`/communities/${id}/challenges/create`}>
@@ -262,30 +270,34 @@ export default function CommunityDetailPage({ params }: { params: Promise<{ id: 
                             </div>
                         )}
                     </TabsContent>
+
                     {isMember && (
                         <TabsContent value="chat" className="mt-6">
                             <CommunityChat communityId={id} />
                         </TabsContent>
                     )}
+
                     <TabsContent value="leaderboard" className="mt-6">
                         <Leaderboard users={members} />
                     </TabsContent>
+
                     <TabsContent value="members" className="mt-6">
                         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-                            {members.map(user => (
-                                <div key={user.id} className="flex items-center gap-4 p-4 rounded-lg bg-secondary">
+                            {members.map(member => (
+                                <div key={member.id} className="flex items-center gap-4 p-4 rounded-lg bg-secondary">
                                     <Avatar>
-                                        <AvatarImage src={user.avatarUrl} alt={user.name} data-ai-hint="person" />
-                                        <AvatarFallback>{user.name.charAt(0)}</AvatarFallback>
+                                        <AvatarImage src={member.avatarUrl} alt={member.name} data-ai-hint="person" />
+                                        <AvatarFallback>{member.name.charAt(0)}</AvatarFallback>
                                     </Avatar>
                                     <div>
-                                        <p className="font-semibold">{user.name}</p>
-                                        <p className="text-sm text-muted-foreground">{user.xp.toLocaleString()} XP</p>
+                                        <p className="font-semibold">{member.name}</p>
+                                        <p className="text-sm text-muted-foreground">{member.xp.toLocaleString()} XP</p>
                                     </div>
                                 </div>
                             ))}
                         </div>
                     </TabsContent>
+
                     <TabsContent value="checkins" className="mt-6">
                         <div className="text-center p-8 border-2 border-dashed rounded-lg bg-secondary">
                             <Video className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
@@ -294,6 +306,7 @@ export default function CommunityDetailPage({ params }: { params: Promise<{ id: 
                             <LiveCheckinDialog communityId={id} triggerButton={<Button><Video className="mr-2 h-4 w-4" />Start a Check-in</Button>} />
                         </div>
                     </TabsContent>
+
                     {isOwner && (
                         <TabsContent value="manage-challenges" className="mt-6">
                             <Card>
@@ -353,7 +366,6 @@ export default function CommunityDetailPage({ params }: { params: Promise<{ id: 
     );
 }
 
-
 function CommunityDetailSkeleton() {
     return (
         <div className="space-y-8 animate-pulse">
@@ -373,7 +385,5 @@ function CommunityDetailSkeleton() {
                 </div>
             </div>
         </div>
-    )
+    );
 }
-
-

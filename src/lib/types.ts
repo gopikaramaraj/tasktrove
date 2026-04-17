@@ -30,6 +30,7 @@ export interface Challenge {
     nanoseconds: number;
   };
   xp: number;
+  category?: string;
 }
 
 export interface User {
